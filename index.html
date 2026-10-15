@@ -387,16 +387,25 @@
         const CSV_DISTRITO_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSdIHTs9OSFutV7_VVJftFnusa-PFXrFRlklASBc1kmqbjbJDRgBccUJuiYwhLHPGEJW-fli0PY8Exw/pub?gid=1728241245&single=true&output=csv";
         const CSV_LINKS_DRIVE_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSdIHTs9OSFutV7_VVJftFnusa-PFXrFRlklASBc1kmqbjbJDRgBccUJuiYwhLHPGEJW-fli0PY8Exw/pub?gid=1896615293&single=true&output=csv";
 
-        // Conversor automático de links da Google Drive para formato anti-bloqueio
-        function normalizarLinkFotoDrive(url) {
+        // Extrai o ID do ficheiro da Google Drive e gera o link direto de imagem mais estável
+        function extrairIdDrive(url) {
             if (!url) return "";
             let limpo = url.trim();
-            if (limpo.includes("drive.google.com/thumbnail")) return limpo;
-            const matchId = limpo.match(/[-\w]{25,}/);
-            if (matchId && (limpo.includes("drive.google.com") || limpo.includes("docs.google.com"))) {
-                return `https://drive.google.com/thumbnail?id=${matchId[0]}&sz=w1000`;
+            const matchIdParam = limpo.match(/[?&]id=([-\w]{25,})/);
+            if (matchIdParam) return matchIdParam[1];
+            const matchIdPath = limpo.match(/\/d\/([-\w]{25,})/);
+            if (matchIdPath) return matchIdPath[1];
+            const matchGeral = limpo.match(/[-\w]{25,}/);
+            return matchGeral ? matchGeral[0] : "";
+        }
+
+        function normalizarLinkFotoDrive(url) {
+            if (!url) return "";
+            const fileId = extrairIdDrive(url);
+            if (fileId) {
+                return `https://lh3.googleusercontent.com/d/${fileId}=w1000`;
             }
-            return limpo;
+            return url.trim();
         }
 
         // Inicialização do Mapa centrado em Portugal
@@ -404,21 +413,20 @@
             zoomControl: true
         }).setView([41.15, -8.35], 8);
 
-        // Camadas de Fundo (Servidores sem bloqueio 403 e de alta velocidade)
-        const cartoVoyager = L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
-            maxZoom: 20,
-            subdomains: 'abcd',
-            attribution: '&copy; OpenStreetMap contributors &copy; CARTO'
-        }).addTo(map);
-
+        // Camadas de Fundo - "Mapa de Ruas (Google)" passa a ser o mapa por defeito (.addTo(map))
         const googleStreets = L.tileLayer('https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}', {
             maxZoom: 20,
             attribution: '&copy; Google Maps'
-        });
+        }).addTo(map);
 
         const googleHybrid = L.tileLayer('https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}', {
             maxZoom: 20,
             attribution: '&copy; Google Maps Satellite'
+        });
+
+        const googleTerrain = L.tileLayer('https://mt1.google.com/vt/lyrs=p&x={x}&y={y}&z={z}', {
+            maxZoom: 20,
+            attribution: '&copy; Google Maps Terrain'
         });
 
         const satLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
@@ -427,9 +435,9 @@
         });
 
         const baseLayers = {
-            "Mapa Claro (Carto Voyager)": cartoVoyager,
             "Mapa de Ruas (Google)": googleStreets,
             "Satélite com Nomes (Google Híbrido)": googleHybrid,
+            "Mapa de Relevo (Google Terreno)": googleTerrain,
             "Satélite Puro (ESRI)": satLayer
         };
         L.control.layers(baseLayers, null, { position: 'topleft' }).addTo(map);
@@ -610,21 +618,24 @@
                 // Carrossel de Fotos (suporta 1 ou várias separadas por vírgula)
                 let htmlFotos = "";
                 if (item.foto) {
-                    const fotosList = item.foto.split(',').map(f => normalizarLinkFotoDrive(f)).filter(f => f.length > 0);
-                    if (fotosList.length > 0) {
+                    const fotosRaw = item.foto.split(',').map(f => f.trim()).filter(f => f.length > 0);
+                    if (fotosRaw.length > 0) {
                         let imgsHtml = "";
-                        fotosList.forEach((fUrl, idx) => {
+                        fotosRaw.forEach((fRaw, idx) => {
                             const activeClass = idx === 0 ? "active" : "";
-                            imgsHtml += `<img src="${fUrl}" class="carousel-img ${activeClass}" alt="Foto ${item.id}" referrerpolicy="no-referrer">`;
+                            const fUrl = normalizarLinkFotoDrive(fRaw);
+                            const idDrive = extrairIdDrive(fRaw);
+                            const fallbackUrl = idDrive ? `https://drive.google.com/thumbnail?id=${idDrive}&sz=w1000` : fUrl;
+                            imgsHtml += `<img src="${fUrl}" onerror="if(this.src!=='${fallbackUrl}'){this.src='${fallbackUrl}';}" class="carousel-img ${activeClass}" alt="Foto ${item.id}" referrerpolicy="no-referrer">`;
                         });
 
-                        if (fotosList.length > 1) {
+                        if (fotosRaw.length > 1) {
                             htmlFotos = `
                                 <div class="carousel-container" id="carousel-${index}">
                                     ${imgsHtml}
                                     <button class="carousel-btn prev" onclick="mudarFoto(${index}, -1)">❮</button>
                                     <button class="carousel-btn next" onclick="mudarFoto(${index}, 1)">❯</button>
-                                    <div class="carousel-counter"><span id="curr-${index}">1</span>/${fotosList.length}</div>
+                                    <div class="carousel-counter"><span id="curr-${index}">1</span>/${fotosRaw.length}</div>
                                 </div>`;
                         } else {
                             htmlFotos = `
