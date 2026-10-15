@@ -1,0 +1,727 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PRP - Património Religioso Popular (Alminhas Digital)</title>
+    
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <!-- Leaflet MarkerCluster CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css" />
+    <!-- PapaParse para ler CSV -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+
+    <style>
+        :root {
+            --primary-color: #2c3e50;
+            --accent-color: #27ae60;
+            --bg-glass: rgba(255, 255, 255, 0.95);
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body, html {
+            height: 100%;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            color: #333;
+        }
+
+        #map {
+            width: 100%;
+            height: 100vh;
+            z-index: 1;
+        }
+
+        /* Painel de Controlo Superior / Filtros */
+        .control-panel {
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            z-index: 1000;
+            background: var(--bg-glass);
+            padding: 15px;
+            border-radius: 10px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+            width: 320px;
+            max-width: calc(100vw - 30px);
+            backdrop-filter: blur(5px);
+        }
+
+        .control-panel h1 {
+            font-size: 15px;
+            color: var(--primary-color);
+            margin-bottom: 5px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .control-panel p.subtitle {
+            font-size: 11px;
+            color: #666;
+            margin-bottom: 12px;
+        }
+
+        .filter-group {
+            margin-bottom: 10px;
+        }
+
+        .filter-group label {
+            display: block;
+            font-size: 12px;
+            font-weight: bold;
+            margin-bottom: 4px;
+            color: #444;
+        }
+
+        .filter-group select {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ccc;
+            border-radius: 6px;
+            background: #fff;
+            font-size: 13px;
+        }
+
+        .stats {
+            font-size: 11px;
+            color: #555;
+            margin-top: 10px;
+            border-top: 1px solid #eee;
+            padding-top: 8px;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        /* Legenda de Cores */
+        .legend {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-top: 8px;
+            padding-top: 8px;
+            border-top: 1px solid #eee;
+            font-size: 11px;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .legend-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            display: inline-block;
+        }
+
+        /* Ecrã de Carregamento */
+        #loader {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(255, 255, 255, 0.95);
+            z-index: 9999;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            transition: opacity 0.5s ease;
+        }
+
+        .spinner {
+            width: 50px;
+            height: 50px;
+            border: 5px solid #f3f3f3;
+            border-top: 5px solid var(--accent-color);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-bottom: 15px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        #loader h2 {
+            font-size: 18px;
+            color: var(--primary-color);
+            margin-bottom: 5px;
+        }
+
+        #loader p {
+            font-size: 13px;
+            color: #666;
+        }
+
+        /* Estilo personalizado das Janelas Popups */
+        .leaflet-popup-content-wrapper {
+            border-radius: 12px;
+            padding: 0;
+            overflow: hidden;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.3);
+        }
+
+        .leaflet-popup-content {
+            margin: 0;
+            line-height: 1.4;
+            width: 300px !important;
+            max-height: 420px;
+            overflow-y: auto;
+        }
+
+        .popup-header {
+            background: var(--primary-color);
+            color: white;
+            padding: 10px 14px;
+            font-weight: bold;
+            font-size: 13px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .popup-badge {
+            font-size: 10px;
+            padding: 2px 6px;
+            border-radius: 4px;
+            text-transform: uppercase;
+            font-weight: bold;
+        }
+
+        /* Cores de Tipologia para Badges e Marcadores */
+        .badge-alminhas { background: #2980b9; color: white; }
+        .badge-nicho { background: #27ae60; color: white; }
+        .badge-cruz { background: #c0392b; color: white; }
+        .badge-nicho-cruz { background: #8e44ad; color: white; }
+        .badge-outro { background: #7f8c8d; color: white; }
+
+        .popup-body {
+            padding: 12px;
+            font-size: 12px;
+        }
+
+        /* Carrossel de Fotos */
+        .carousel-container {
+            position: relative;
+            width: 100%;
+            height: 180px;
+            background: #1a1a1a;
+            margin-bottom: 10px;
+            border-radius: 6px;
+            overflow: hidden;
+        }
+
+        .carousel-img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            display: none;
+        }
+
+        .carousel-img.active {
+            display: block;
+        }
+
+        .carousel-btn {
+            position: absolute;
+            top: 50%;
+            transform: translateY(-50%);
+            background: rgba(0,0,0,0.5);
+            color: white;
+            border: none;
+            cursor: pointer;
+            padding: 6px 10px;
+            font-size: 12px;
+            border-radius: 4px;
+            z-index: 10;
+        }
+
+        .carousel-btn.prev { left: 5px; }
+        .carousel-btn.next { right: 5px; }
+        
+        .carousel-counter {
+            position: absolute;
+            bottom: 5px;
+            right: 8px;
+            background: rgba(0,0,0,0.6);
+            color: white;
+            font-size: 10px;
+            padding: 2px 5px;
+            border-radius: 3px;
+        }
+
+        .popup-row {
+            margin-bottom: 6px;
+        }
+
+        .popup-row strong {
+            color: #444;
+        }
+
+        .popup-description {
+            font-style: italic;
+            color: #555;
+            background: #f9f9f9;
+            padding: 6px;
+            border-left: 3px solid #ccc;
+            margin: 8px 0;
+            max-height: 90px;
+            overflow-y: auto;
+        }
+
+        .popup-actions {
+            display: flex;
+            gap: 6px;
+            margin-top: 10px;
+        }
+
+        .btn-ficha {
+            flex: 1;
+            text-align: center;
+            background: #e74c3c;
+            color: white !important;
+            text-decoration: none;
+            padding: 8px;
+            border-radius: 6px;
+            font-weight: bold;
+            font-size: 11px;
+            transition: background 0.2s;
+        }
+
+        .btn-ficha:hover {
+            background: #c0392b;
+        }
+
+        .btn-gps {
+            text-align: center;
+            background: #34495e;
+            color: white !important;
+            text-decoration: none;
+            padding: 8px 10px;
+            border-radius: 6px;
+            font-weight: bold;
+            font-size: 11px;
+            transition: background 0.2s;
+        }
+
+        .btn-gps:hover {
+            background: #2c3e50;
+        }
+
+        @media (max-width: 600px) {
+            .control-panel {
+                top: auto;
+                bottom: 15px;
+                right: 10px;
+                left: 10px;
+                width: auto;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <div id="loader">
+        <div class="spinner"></div>
+        <h2>A carregar base de dados do PRP...</h2>
+        <p>A sincronizar registos do Google Sheets (Aba DISTRITO e Aba LINKS_DRIVE)</p>
+    </div>
+
+    <div class="control-panel">
+        <h1>🏛️ Alminhas Digital</h1>
+        <p class="subtitle">Património Religioso Popular</p>
+        
+        <div class="filter-group">
+            <label for="select-concelho">Filtrar por Concelho:</label>
+            <select id="select-concelho">
+                <option value="TODOS">Todos os Concelhos</option>
+            </select>
+        </div>
+
+        <div class="filter-group">
+            <label for="select-tipologia">Filtrar por Tipologia:</label>
+            <select id="select-tipologia">
+                <option value="TODOS">Todas as Tipologias</option>
+                <option value="Alminhas">Alminhas</option>
+                <option value="Nicho">Nicho</option>
+                <option value="Cruz">Cruz</option>
+                <option value="Nicho-Cruz">Nicho-Cruz</option>
+            </select>
+        </div>
+
+        <div class="legend">
+            <div class="legend-item"><span class="legend-dot" style="background:#2980b9;"></span> Alminhas</div>
+            <div class="legend-item"><span class="legend-dot" style="background:#27ae60;"></span> Nicho</div>
+            <div class="legend-item"><span class="legend-dot" style="background:#c0392b;"></span> Cruz</div>
+            <div class="legend-item"><span class="legend-dot" style="background:#8e44ad;"></span> Nicho-Cruz</div>
+        </div>
+
+        <div class="stats">
+            <span id="stat-total">A carregar registos...</span>
+            <span id="stat-fotos"></span>
+        </div>
+    </div>
+
+    <div id="map"></div>
+
+    <!-- Leaflet & Clustering JS -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
+
+    <script>
+        // ====================================================================
+        // LINKS PUBLICADOS EM CSV DO GOOGLE SHEETS (ABA DISTRITO E LINKS_DRIVE)
+        // ====================================================================
+        const CSV_DISTRITO_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSdIHTs9OSFutV7_VVJftFnusa-PFXrFRlklASBc1kmqbjbJDRgBccUJuiYwhLHPGEJW-fli0PY8Exw/pub?gid=1728241245&single=true&output=csv";
+        const CSV_LINKS_DRIVE_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSdIHTs9OSFutV7_VVJftFnusa-PFXrFRlklASBc1kmqbjbJDRgBccUJuiYwhLHPGEJW-fli0PY8Exw/pub?gid=1896615293&single=true&output=csv";
+
+        // Conversor automático de links da Google Drive para formato anti-bloqueio
+        function normalizarLinkFotoDrive(url) {
+            if (!url) return "";
+            let limpo = url.trim();
+            if (limpo.includes("drive.google.com/thumbnail")) return limpo;
+            const matchId = limpo.match(/[-\w]{25,}/);
+            if (matchId && (limpo.includes("drive.google.com") || limpo.includes("docs.google.com"))) {
+                return `https://drive.google.com/thumbnail?id=${matchId[0]}&sz=w1000`;
+            }
+            return limpo;
+        }
+
+        // Inicialização do Mapa centrado em Portugal
+        const map = L.map('map', {
+            zoomControl: true
+        }).setView([41.15, -8.35], 8);
+
+        // Camadas de Fundo (Servidores sem bloqueio 403 e de alta velocidade)
+        const cartoVoyager = L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+            maxZoom: 20,
+            subdomains: 'abcd',
+            attribution: '&copy; OpenStreetMap contributors &copy; CARTO'
+        }).addTo(map);
+
+        const googleStreets = L.tileLayer('https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}', {
+            maxZoom: 20,
+            attribution: '&copy; Google Maps'
+        });
+
+        const googleHybrid = L.tileLayer('https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}', {
+            maxZoom: 20,
+            attribution: '&copy; Google Maps Satellite'
+        });
+
+        const satLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+            maxZoom: 19,
+            attribution: 'Tiles &copy; Esri'
+        });
+
+        const baseLayers = {
+            "Mapa Claro (Carto Voyager)": cartoVoyager,
+            "Mapa de Ruas (Google)": googleStreets,
+            "Satélite com Nomes (Google Híbrido)": googleHybrid,
+            "Satélite Puro (ESRI)": satLayer
+        };
+        L.control.layers(baseLayers, null, { position: 'topleft' }).addTo(map);
+
+        // Agrupador de Clusters de Marcadores
+        const markersCluster = L.markerClusterGroup({
+            maxClusterRadius: 45,
+            spiderfyOnMaxZoom: true,
+            showCoverageOnHover: false
+        });
+        map.addLayer(markersCluster);
+
+        // Ícones personalizados por Tipologia (Alminhas, Nicho, Cruz, Nicho-Cruz)
+        function criarIcone(tipologia) {
+            let cor = "#7f8c8d"; // Cinzento por defeito
+            let tipoNorm = (tipologia || "").trim().toLowerCase();
+
+            if (tipoNorm.includes("alminha")) cor = "#2980b9";      // Azul
+            else if (tipoNorm.includes("nicho-cruz")) cor = "#8e44ad"; // Roxo
+            else if (tipoNorm.includes("nicho")) cor = "#27ae60";      // Verde
+            else if (tipoNorm.includes("cruz")) cor = "#c0392b";       // Vermelho
+
+            return L.divIcon({
+                className: 'custom-pin',
+                html: `<div style="background-color: ${cor}; width: 14px; height: 14px; border-radius: 50%; border: 2px solid white; box-shadow: 0 0 4px rgba(0,0,0,0.6);"></div>`,
+                iconSize: [18, 18],
+                iconAnchor: [9, 9]
+            });
+        }
+
+        let todosDadosGlobais = [];
+
+        function iniciarCarregamentoDados() {
+            // 1. Carrega primeiro a aba LINKS_DRIVE
+            Papa.parse(CSV_LINKS_DRIVE_URL, {
+                download: true,
+                header: false,
+                skipEmptyLines: true,
+                complete: function(resLinks) {
+                    const mapaLinks = {};
+                    if (resLinks && resLinks.data) {
+                        resLinks.data.forEach((row, idx) => {
+                            if (!row || row.length < 2) return;
+                            const id = String(row[0] || "").trim().toUpperCase();
+                            if (id && id !== "ID") {
+                                mapaLinks[id] = {
+                                    foto: String(row[1] || "").trim(),
+                                    ficha: String(row[2] || "").trim()
+                                };
+                            }
+                        });
+                    }
+
+                    // 2. Carrega a aba DISTRITO (colunas A a T)
+                    Papa.parse(CSV_DISTRITO_URL, {
+                        download: true,
+                        header: false,
+                        skipEmptyLines: true,
+                        complete: function(resDistrito) {
+                            processarDadosCompletos(resDistrito.data, mapaLinks);
+                        },
+                        error: function(err) {
+                            document.getElementById('loader').innerHTML = `<h3 style="color:#c0392b;">Erro ao carregar aba DISTRITO</h3><p>Verifique se publicou na Web como CSV.</p>`;
+                        }
+                    });
+                },
+                error: function() {
+                    // Se a aba LINKS_DRIVE ainda estiver a ser criada, carrega a aba DISTRITO na mesma
+                    Papa.parse(CSV_DISTRITO_URL, {
+                        download: true,
+                        header: false,
+                        skipEmptyLines: true,
+                        complete: function(resDistrito) {
+                            processarDadosCompletos(resDistrito.data, {});
+                        }
+                    });
+                }
+            });
+        }
+
+        function processarDadosCompletos(linhasCsv, mapaLinks) {
+            todosDadosGlobais = [];
+            const concelhosSet = new Set();
+            let comFotoCount = 0;
+
+            for (let i = 0; i < linhasCsv.length; i++) {
+                const r = linhasCsv[i];
+                if (!r || r.length < 9) continue;
+
+                // Mapeamento exato das 20 colunas (A a T) do Google Sheets
+                const id          = String(r[0] || "").trim(); // A: ID / Código
+                const lugar       = String(r[1] || "").trim(); // B: Lugar
+                const freguesia   = String(r[2] || "").trim(); // C: Freguesia
+                const concelho    = String(r[3] || "").trim(); // D: Concelho
+                const distrito    = String(r[4] || "").trim(); // E: Distrito
+                const painel      = String(r[5] || "").trim(); // F: Painel / Iconografia
+                const cronologia  = String(r[6] || "").trim(); // G: Cronologia
+                const latStr      = String(r[7] || "").trim().replace(',', '.'); // H: Latitude
+                const lonStr      = String(r[8] || "").trim().replace(',', '.'); // I: Longitude
+                const descricao   = String(r[9] || "").trim(); // J: Descrição
+                const autor       = String(r[10] || "").trim(); // K: Autor / Recolha
+                const esmolas     = String(r[11] || "").trim(); // L: Caixa de Esmolas
+                const protecao    = String(r[12] || "").trim(); // M: Proteção
+                const altura      = String(r[13] || "").trim(); // N: Altura (Medidas)
+                const largura     = String(r[14] || "").trim(); // O: Largura (Medidas)
+                const profundidade= String(r[15] || "").trim(); // P: Profundidade (Medidas)
+                const tipologia   = String(r[16] || "").trim(); // Q: Tipologia
+                const dataAtualiz = String(r[17] || "").trim(); // R: Data Última Atualização
+                const referencias = String(r[18] || "").trim(); // S: Referências Conhecidas
+                const obs         = String(r[19] || "").trim(); // T: Obs
+
+                const lat = parseFloat(latStr);
+                const lon = parseFloat(lonStr);
+
+                // Ignora linhas de cabeçalho ou sem coordenadas válidas
+                if (!isNaN(lat) && !isNaN(lon)) {
+                    if (concelho) concelhosSet.add(concelho);
+
+                    // Procura os links automáticos na aba LINKS_DRIVE pelo ID exato
+                    const dadosDrive = mapaLinks[id.toUpperCase()] || { foto: "", ficha: "" };
+                    if (dadosDrive.foto) comFotoCount++;
+
+                    todosDadosGlobais.push({
+                        id, lugar, freguesia, concelho, distrito, painel, cronologia,
+                        lat, lon, descricao, autor, esmolas, protecao,
+                        altura, largura, profundidade, tipologia, dataAtualiz,
+                        referencias, obs,
+                        foto: dadosDrive.foto,
+                        ficha: dadosDrive.ficha
+                    });
+                }
+            }
+
+            // Preenche o seletor de concelhos alfabeticamente
+            const selectConcelho = document.getElementById('select-concelho');
+            Array.from(concelhosSet).sort((a, b) => a.localeCompare(b, 'pt')).forEach(c => {
+                const opt = document.createElement('option');
+                opt.value = c;
+                opt.textContent = c;
+                selectConcelho.appendChild(opt);
+            });
+
+            // Permite abrir diretamente um concelho via URL (ex: index.html?concelho=Amares)
+            const urlParams = new URLSearchParams(window.location.search);
+            const concelhoUrl = urlParams.get('concelho');
+            if (concelhoUrl) {
+                for (let i = 0; i < selectConcelho.options.length; i++) {
+                    if (selectConcelho.options[i].value.toLowerCase() === concelhoUrl.toLowerCase()) {
+                        selectConcelho.selectedIndex = i;
+                        break;
+                    }
+                }
+            }
+
+            document.getElementById('loader').style.opacity = '0';
+            setTimeout(() => document.getElementById('loader').style.display = 'none', 500);
+
+            aplicarFiltros(true);
+        }
+
+        function renderizarMarcadores(dados) {
+            markersCluster.clearLayers();
+
+            let contador = 0;
+            dados.forEach((item, index) => {
+                const marker = L.marker([item.lat, item.lon], {
+                    icon: criarIcone(item.tipologia)
+                });
+
+                // Badges de Tipologia
+                let tipoLower = (item.tipologia || "Outro").toLowerCase();
+                let badgeClass = "badge-outro";
+                if (tipoLower.includes("alminha")) badgeClass = "badge-alminhas";
+                else if (tipoLower.includes("nicho-cruz")) badgeClass = "badge-nicho-cruz";
+                else if (tipoLower.includes("nicho")) badgeClass = "badge-nicho";
+                else if (tipoLower.includes("cruz")) badgeClass = "badge-cruz";
+
+                // Carrossel de Fotos (suporta 1 ou várias separadas por vírgula)
+                let htmlFotos = "";
+                if (item.foto) {
+                    const fotosList = item.foto.split(',').map(f => normalizarLinkFotoDrive(f)).filter(f => f.length > 0);
+                    if (fotosList.length > 0) {
+                        let imgsHtml = "";
+                        fotosList.forEach((fUrl, idx) => {
+                            const activeClass = idx === 0 ? "active" : "";
+                            imgsHtml += `<img src="${fUrl}" class="carousel-img ${activeClass}" alt="Foto ${item.id}" referrerpolicy="no-referrer">`;
+                        });
+
+                        if (fotosList.length > 1) {
+                            htmlFotos = `
+                                <div class="carousel-container" id="carousel-${index}">
+                                    ${imgsHtml}
+                                    <button class="carousel-btn prev" onclick="mudarFoto(${index}, -1)">❮</button>
+                                    <button class="carousel-btn next" onclick="mudarFoto(${index}, 1)">❯</button>
+                                    <div class="carousel-counter"><span id="curr-${index}">1</span>/${fotosList.length}</div>
+                                </div>`;
+                        } else {
+                            htmlFotos = `
+                                <div class="carousel-container">
+                                    ${imgsHtml}
+                                </div>`;
+                        }
+                    }
+                }
+
+                // Medidas (Colunas N, O, P)
+                let htmlMedidas = "";
+                if (item.altura || item.largura || item.profundidade) {
+                    htmlMedidas = `<div class="popup-row"><strong>Medidas:</strong> ${item.altura || "-"} (Alt) x ${item.largura || "-"} (Larg) x ${item.profundidade || "-"} (Prof)</div>`;
+                }
+
+                let htmlPainel = item.painel ? `<div class="popup-row"><strong>Iconografia / Painel:</strong> ${item.painel}</div>` : "";
+                let htmlDescricao = item.descricao ? `<div class="popup-description">${item.descricao}</div>` : "";
+                let htmlAutor = item.autor ? `<div class="popup-row" style="font-size:11px; color:#666;"><strong>Recolha/Autor:</strong> ${item.autor}</div>` : "";
+
+                // Botões de Ficha Técnica e GPS
+                let btnFicha = item.ficha ? `<a href="${item.ficha}" target="_blank" rel="noopener" class="btn-ficha">📄 Ficha Técnica</a>` : "";
+                let btnGps = `<a href="https://www.google.com/maps?q=${item.lat},${item.lon}" target="_blank" rel="noopener" class="btn-gps" title="Abrir no Google Maps">📍 GPS</a>`;
+
+                const popupContent = `
+                    <div class="popup-header">
+                        <span>${item.id || "Registo PRP"}</span>
+                        <span class="popup-badge ${badgeClass}">${item.tipologia || "Património"}</span>
+                    </div>
+                    <div class="popup-body">
+                        ${htmlFotos}
+                        <div class="popup-row"><strong>Local:</strong> ${item.lugar ? item.lugar + ', ' : ''}${item.freguesia}, ${item.concelho}</div>
+                        ${item.cronologia ? `<div class="popup-row"><strong>Cronologia:</strong> ${item.cronologia}</div>` : ""}
+                        ${htmlMedidas}
+                        ${htmlPainel}
+                        ${htmlDescricao}
+                        ${htmlAutor}
+                        <div class="popup-actions">
+                            ${btnFicha}
+                            ${btnGps}
+                        </div>
+                    </div>
+                `;
+
+                marker.bindPopup(popupContent, { maxWidth: 320 });
+                markersCluster.addLayer(marker);
+                contador++;
+            });
+
+            document.getElementById('stat-total').textContent = `Monumentos: ${contador}`;
+        }
+
+        // Função global para navegar entre fotos no carrossel
+        window.mudarFoto = function(index, direcao) {
+            const container = document.getElementById(`carousel-${index}`);
+            if (!container) return;
+            const imagens = container.querySelectorAll('.carousel-img');
+            const counter = document.getElementById(`curr-${index}`);
+            
+            let currentIndex = 0;
+            imagens.forEach((img, idx) => {
+                if (img.classList.contains('active')) currentIndex = idx;
+                img.classList.remove('active');
+            });
+
+            let novoIndex = currentIndex + direcao;
+            if (novoIndex >= imagens.length) novoIndex = 0;
+            if (novoIndex < 0) novoIndex = imagens.length - 1;
+
+            imagens[novoIndex].classList.add('active');
+            if (counter) counter.textContent = novoIndex + 1;
+        };
+
+        function aplicarFiltros(ajustarZoomInicial = false) {
+            const concelhoSel = document.getElementById('select-concelho').value;
+            const tipologiaSel = document.getElementById('select-tipologia').value;
+
+            const dadosFiltrados = todosDadosGlobais.filter(item => {
+                const matchConcelho = (concelhoSel === "TODOS" || item.concelho === concelhoSel);
+                const matchTipologia = (tipologiaSel === "TODOS" || (item.tipologia && item.tipologia.toLowerCase().includes(tipologiaSel.toLowerCase())));
+                return matchConcelho && matchTipologia;
+            });
+
+            renderizarMarcadores(dadosFiltrados);
+
+            if ((concelhoSel !== "TODOS" || ajustarZoomInicial) && dadosFiltrados.length > 0) {
+                const bounds = L.latLngBounds(dadosFiltrados.map(d => [d.lat, d.lon]));
+                if (bounds.isValid()) {
+                    map.fitBounds(bounds, { padding: [50, 50], maxZoom: 15 });
+                }
+            }
+        }
+
+        document.getElementById('select-concelho').addEventListener('change', () => aplicarFiltros(true));
+        document.getElementById('select-tipologia').addEventListener('change', () => aplicarFiltros(false));
+
+        window.onload = iniciarCarregamentoDados;
+    </script>
+</body>
+</html>
