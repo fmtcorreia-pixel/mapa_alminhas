@@ -357,7 +357,7 @@
                 <option value="Alminhas">Alminhas</option>
                 <option value="Nicho">Nicho</option>
                 <option value="Cruz">Cruz</option>
-                <option value="Nicho-Cruz">Nicho-Cruz</option>
+                <option value="Nicho/Cruz">Nicho/Cruz</option>
             </select>
         </div>
 
@@ -365,7 +365,7 @@
             <div class="legend-item"><span class="legend-dot" style="background:#2980b9;"></span> Alminhas</div>
             <div class="legend-item"><span class="legend-dot" style="background:#27ae60;"></span> Nicho</div>
             <div class="legend-item"><span class="legend-dot" style="background:#c0392b;"></span> Cruz</div>
-            <div class="legend-item"><span class="legend-dot" style="background:#8e44ad;"></span> Nicho-Cruz</div>
+            <div class="legend-item"><span class="legend-dot" style="background:#8e44ad;"></span> Nicho/Cruz</div>
         </div>
 
         <div class="stats">
@@ -450,13 +450,13 @@
         });
         map.addLayer(markersCluster);
 
-        // Ícones personalizados por Tipologia (Alminhas, Nicho, Cruz, Nicho-Cruz)
+        // Ícones personalizados por Tipologia (Alminhas, Nicho, Cruz, Nicho/Cruz)
         function criarIcone(tipologia) {
             let cor = "#7f8c8d"; // Cinzento por defeito
             let tipoNorm = (tipologia || "").trim().toLowerCase();
 
             if (tipoNorm.includes("alminha")) cor = "#2980b9";      // Azul
-            else if (tipoNorm.includes("nicho-cruz")) cor = "#8e44ad"; // Roxo
+            else if (tipoNorm.includes("nicho/cruz") || tipoNorm.includes("nicho-cruz")) cor = "#8e44ad"; // Roxo
             else if (tipoNorm.includes("nicho")) cor = "#27ae60";      // Verde
             else if (tipoNorm.includes("cruz")) cor = "#c0392b";       // Vermelho
 
@@ -611,7 +611,7 @@
                 let tipoLower = (item.tipologia || "Outro").toLowerCase();
                 let badgeClass = "badge-outro";
                 if (tipoLower.includes("alminha")) badgeClass = "badge-alminhas";
-                else if (tipoLower.includes("nicho-cruz")) badgeClass = "badge-nicho-cruz";
+                else if (tipoLower.includes("nicho/cruz") || tipoLower.includes("nicho-cruz")) badgeClass = "badge-nicho-cruz";
                 else if (tipoLower.includes("nicho")) badgeClass = "badge-nicho";
                 else if (tipoLower.includes("cruz")) badgeClass = "badge-cruz";
 
@@ -715,7 +715,21 @@
 
             const dadosFiltrados = todosDadosGlobais.filter(item => {
                 const matchConcelho = (concelhoSel === "TODOS" || item.concelho === concelhoSel);
-                const matchTipologia = (tipologiaSel === "TODOS" || (item.tipologia && item.tipologia.toLowerCase().includes(tipologiaSel.toLowerCase())));
+                
+                let matchTipologia = false;
+                const tItem = (item.tipologia || "").trim().toLowerCase();
+                if (tipologiaSel === "TODOS") {
+                    matchTipologia = true;
+                } else if (tipologiaSel === "Nicho/Cruz") {
+                    matchTipologia = (tItem.includes("nicho/cruz") || tItem.includes("nicho-cruz"));
+                } else if (tipologiaSel === "Nicho") {
+                    matchTipologia = (tItem.includes("nicho") && !tItem.includes("cruz"));
+                } else if (tipologiaSel === "Cruz") {
+                    matchTipologia = (tItem.includes("cruz") && !tItem.includes("nicho"));
+                } else {
+                    matchTipologia = tItem.includes(tipologiaSel.toLowerCase());
+                }
+
                 return matchConcelho && matchTipologia;
             });
 
