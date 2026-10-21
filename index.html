@@ -451,13 +451,13 @@
         });
         map.addLayer(markersCluster);
 
-        // Ícones personalizados por Tipologia (Alminhas, Nicho, Cruz, Nicho/Cruz)
+        // Ícones personalizados por Tipologia (Alminhas, Nicho, Cruz, Nicho-Cruz)
         function criarIcone(tipologia) {
             let cor = "#7f8c8d"; // Cinzento por defeito
             let tipoNorm = (tipologia || "").trim().toLowerCase();
 
             if (tipoNorm.includes("alminha")) cor = "#2980b9";      // Azul
-            else if (tipoNorm.includes("nicho/cruz") || tipoNorm.includes("nicho-cruz")) cor = "#8e44ad"; // Roxo
+            else if (tipoNorm.includes("nicho-cruz") || tipoNorm.includes("nicho-cruz")) cor = "#8e44ad"; // Roxo
             else if (tipoNorm.includes("nicho")) cor = "#27ae60";      // Verde
             else if (tipoNorm.includes("cruz")) cor = "#c0392b";       // Vermelho
 
