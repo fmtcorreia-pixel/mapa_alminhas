@@ -97,6 +97,7 @@
             padding-top: 8px;
             display: flex;
             justify-content: space-between;
+            font-weight: 600;
         }
 
         /* Legenda de Cores */
@@ -336,12 +337,12 @@
     <div id="loader">
         <div class="spinner"></div>
         <h2>A carregar base de dados do PRP...</h2>
-        <p>A sincronizar registos e fotografias da aba DISTRITO</p>
+        <p>A sincronizar registos e fotografias da aba DISTRITO (v2.0)</p>
     </div>
 
     <div class="control-panel">
         <h1>🏛️ Alminhas Digital</h1>
-        <p class="subtitle">Património Religioso Popular</p>
+        <p class="subtitle">Património Religioso Popular (v2.0 - Coluna U/V)</p>
         
         <div class="filter-group">
             <label for="select-concelho">Filtrar por Concelho:</label>
@@ -382,9 +383,9 @@
 
     <script>
         // ====================================================================
-        // LINK PUBLICADO EM CSV DA ABA DISTRITO DO GOOGLE SHEETS
+        // LINK PUBLICADO EM CSV DA ABA DISTRITO DO GOOGLE SHEETS (COM ANTI-CACHE)
         // ====================================================================
-        const CSV_DISTRITO_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSdIHTs9OSFutV7_VVJftFnusa-PFXrFRlklASBc1kmqbjbJDRgBccUJuiYwhLHPGEJW-fli0PY8Exw/pub?gid=1728241245&single=true&output=csv";
+        const CSV_BASE_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSdIHTs9OSFutV7_VVJftFnusa-PFXrFRlklASBc1kmqbjbJDRgBccUJuiYwhLHPGEJW-fli0PY8Exw/pub?gid=1728241245&single=true&output=csv";
 
         // Extrai o ID do ficheiro da Google Drive e gera o link direto de imagem mais estável
         function extrairIdDrive(url) {
@@ -470,7 +471,10 @@
         let todosDadosGlobais = [];
 
         function iniciarCarregamentoDados() {
-            Papa.parse(CSV_DISTRITO_URL, {
+            // Força o Google Sheets e o navegador a entregarem a versão mais recente sem cache
+            const urlSemCache = CSV_BASE_URL + "&t=" + new Date().getTime();
+
+            Papa.parse(urlSemCache, {
                 download: true,
                 header: false,
                 skipEmptyLines: true,
@@ -486,42 +490,54 @@
         function processarDadosCompletos(linhasCsv) {
             todosDadosGlobais = [];
             const concelhosSet = new Set();
-            let comFotoCount = 0;
+
+            // Descobre dinamicamente em que coluna está Foto e Ficha pelo cabeçalho (Linha 0),
+            // garantindo por defeito Coluna U (20) e Coluna V (21)
+            let idxFoto = 20;
+            let idxFicha = 21;
+            if (linhasCsv.length > 0) {
+                const cabecalho = linhasCsv[0];
+                for (let c = 0; c < cabecalho.length; c++) {
+                    const nomeCol = String(cabecalho[c] || "").trim().toLowerCase();
+                    if (nomeCol.includes("foto") || nomeCol.includes("imagem")) idxFoto = c;
+                    if (nomeCol.includes("ficha") || nomeCol.includes("pdf") || nomeCol.includes("doc")) idxFicha = c;
+                }
+            }
 
             for (let i = 0; i < linhasCsv.length; i++) {
                 const r = linhasCsv[i];
                 if (!r || r.length < 9) continue;
 
                 // Mapeamento das colunas do Google Sheets (A até V)
-                const id          = String(r[0] || "").trim(); // A: ID
-                const lugar       = String(r[1] || "").trim(); // B: Lugar
-                const freguesia   = String(r[2] || "").trim(); // C: Freguesia
-                const concelho    = String(r[3] || "").trim(); // D: Concelho
-                const distrito    = String(r[4] || "").trim(); // E: Distrito
-                const painel      = String(r[5] || "").trim(); // F: Painel
-                const cronologia  = String(r[6] || "").trim(); // G: Cronologia
-                const latStr      = String(r[7] || "").trim().replace(',', '.'); // H: Latitude
-                const lonStr      = String(r[8] || "").trim().replace(',', '.'); // I: Longitude
-                const descricao   = String(r[9] || "").trim(); // J: Descrição
-                const autor       = String(r[10] || "").trim(); // K: Autor
-                const esmolas     = String(r[11] || "").trim(); // L: Esmolas
-                const protecao    = String(r[12] || "").trim(); // M: Proteção
-                const altura      = String(r[13] || "").trim(); // N: Altura
-                const largura     = String(r[14] || "").trim(); // O: Largura
-                const profundidade= String(r[15] || "").trim(); // P: Profundidade
-                const tipologia   = String(r[16] || "").trim(); // Q: Tipologia
-                const dataAtualiz = String(r[17] || "").trim(); // R: Data
-                const referencias = String(r[18] || "").trim(); // S: Referências
-                const obs         = String(r[19] || "").trim(); // T: Obs
-                const foto        = String(r[20] || "").trim(); // U: Foto
-                const ficha       = String(r[21] || "").trim(); // V: Ficha Técnica
+                const id           = String(r[0] || "").trim(); // A: ID
+                const lugar        = String(r[1] || "").trim(); // B: Lugar
+                const freguesia    = String(r[2] || "").trim(); // C: Freguesia
+                const concelho     = String(r[3] || "").trim(); // D: Concelho
+                const distrito     = String(r[4] || "").trim(); // E: Distrito
+                const painel       = String(r[5] || "").trim(); // F: Painel
+                const cronologia   = String(r[6] || "").trim(); // G: Cronologia
+                const latStr       = String(r[7] || "").trim().replace(',', '.'); // H: Latitude
+                const lonStr       = String(r[8] || "").trim().replace(',', '.'); // I: Longitude
+                const descricao    = String(r[9] || "").trim(); // J: Descrição
+                const autor        = String(r[10] || "").trim(); // K: Autor
+                const esmolas      = String(r[11] || "").trim(); // L: Esmolas
+                const protecao     = String(r[12] || "").trim(); // M: Proteção
+                const altura       = String(r[13] || "").trim(); // N: Altura
+                const largura      = String(r[14] || "").trim(); // O: Largura
+                const profundidade = String(r[15] || "").trim(); // P: Profundidade
+                const tipologia    = String(r[16] || "").trim(); // Q: Tipologia
+                const dataAtualiz  = String(r[17] || "").trim(); // R: Data
+                const referencias  = String(r[18] || "").trim(); // S: Referências
+                const obs          = String(r[19] || "").trim(); // T: Obs
+                
+                let foto  = String(r[idxFoto] || "").trim();  // U: Foto (índice 20)
+                let ficha = String(r[idxFicha] || "").trim(); // V: Ficha Técnica (índice 21)
 
                 const lat = parseFloat(latStr);
                 const lon = parseFloat(lonStr);
 
                 if (!isNaN(lat) && !isNaN(lon)) {
                     if (concelho) concelhosSet.add(concelho);
-                    if (foto) comFotoCount++;
 
                     todosDadosGlobais.push({
                         id, lugar, freguesia, concelho, distrito, painel, cronologia,
@@ -565,6 +581,8 @@
             markersCluster.clearLayers();
 
             let contador = 0;
+            let contadorFotos = 0;
+
             dados.forEach((item, index) => {
                 const marker = L.marker([item.lat, item.lon], {
                     icon: criarIcone(item.tipologia)
@@ -578,9 +596,10 @@
                 else if (tipoLower.includes("cruz")) badgeClass = "badge-cruz";
 
                 let htmlFotos = "";
-                if (item.foto) {
-                    const fotosRaw = item.foto.split(',').map(f => f.trim()).filter(f => f.length > 0);
+                if (item.foto && item.foto.includes("http")) {
+                    const fotosRaw = item.foto.split(/[,;\n\s]+/).map(f => f.trim()).filter(f => f.startsWith('http'));
                     if (fotosRaw.length > 0) {
+                        contadorFotos++;
                         let imgsHtml = "";
                         fotosRaw.forEach((fRaw, idx) => {
                             const activeClass = idx === 0 ? "active" : "";
@@ -616,7 +635,7 @@
                 let htmlDescricao = item.descricao ? `<div class="popup-description">${item.descricao}</div>` : "";
                 let htmlAutor = item.autor ? `<div class="popup-row" style="font-size:11px; color:#666;"><strong>Recolha/Autor:</strong> ${item.autor}</div>` : "";
 
-                let btnFicha = item.ficha ? `<a href="${item.ficha}" target="_blank" rel="noopener" class="btn-ficha">📄 Ficha Técnica</a>` : "";
+                let btnFicha = (item.ficha && item.ficha.includes("http")) ? `<a href="${item.ficha}" target="_blank" rel="noopener" class="btn-ficha">📄 Ficha Técnica</a>` : "";
                 let btnGps = `<a href="https://www.google.com/maps?q=${item.lat},${item.lon}" target="_blank" rel="noopener" class="btn-gps" title="Abrir no Google Maps">📍 GPS</a>`;
 
                 const popupContent = `
@@ -645,6 +664,7 @@
             });
 
             document.getElementById('stat-total').textContent = `Monumentos: ${contador}`;
+            document.getElementById('stat-fotos').textContent = `Com foto: ${contadorFotos}`;
         }
 
         window.mudarFoto = function(index, direcao) {
