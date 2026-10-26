@@ -1,730 +1,2943 @@
 <!DOCTYPE html>
-<html lang="pt">
+<html lang="pt-PT">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>PRP - Património Religioso Popular (Alminhas Digital)</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Rota das Alminhas — Detetor & Património</title>
     
-    <!-- Leaflet CSS -->
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    
+    <!-- Leaflet CSS & JS -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    <!-- Leaflet MarkerCluster CSS -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+    <!-- Leaflet MarkerCluster (Alta Performance para 7.053+ Monumentos) -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css" />
     <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css" />
-    <!-- PapaParse para ler CSV -->
+    <script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
+
+    <!-- PapaParse (Leitor ultra-rápido de CSV do Google Sheets) -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
 
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        azulejo: {
+                            50: '#f0f5fa',
+                            100: '#e1ebf5',
+                            200: '#c8d9eb',
+                            500: '#2563eb',
+                            600: '#1d4ed8',
+                            700: '#1e40af',
+                            800: '#153462',
+                            900: '#0f2447',
+                        },
+                        dourado: {
+                            300: '#f3d27a',
+                            400: '#e5b842',
+                            500: '#d4af37',
+                            600: '#b59024',
+                        },
+                        cal: '#fcfbf9'
+                    },
+                    fontFamily: {
+                        serif: ['Cinzel', 'serif'],
+                        sans: ['Plus Jakarta Sans', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+
     <style>
-        :root {
-            --primary-color: #2c3e50;
-            --accent-color: #27ae60;
-            --bg-glass: rgba(255, 255, 255, 0.95);
-        }
-
-        * {
-            box-sizing: border-box;
-            margin: 0;
-            padding: 0;
-        }
-
         body, html {
             height: 100%;
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-            color: #333;
-        }
-
-        #map {
-            width: 100%;
-            height: 100vh;
-            z-index: 1;
-        }
-
-        /* Painel de Controlo Superior / Filtros */
-        .control-panel {
-            position: absolute;
-            top: 15px;
-            right: 15px;
-            z-index: 1000;
-            background: var(--bg-glass);
-            padding: 15px;
-            border-radius: 10px;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
-            width: 320px;
-            max-width: calc(100vw - 30px);
-            backdrop-filter: blur(5px);
-        }
-
-        .control-panel h1 {
-            font-size: 15px;
-            color: var(--primary-color);
-            margin-bottom: 5px;
-            display: flex;
-            align-items: center;
-            gap: 6px;
-        }
-
-        .control-panel p.subtitle {
-            font-size: 11px;
-            color: #666;
-            margin-bottom: 12px;
-        }
-
-        .filter-group {
-            margin-bottom: 10px;
-        }
-
-        .filter-group label {
-            display: block;
-            font-size: 12px;
-            font-weight: bold;
-            margin-bottom: 4px;
-            color: #444;
-        }
-
-        .filter-group select {
-            width: 100%;
-            padding: 8px;
-            border: 1px solid #ccc;
-            border-radius: 6px;
-            background: #fff;
-            font-size: 13px;
-        }
-
-        .stats {
-            font-size: 11px;
-            color: #555;
-            margin-top: 10px;
-            border-top: 1px solid #eee;
-            padding-top: 8px;
-            display: flex;
-            justify-content: space-between;
-            font-weight: 600;
-        }
-
-        /* Legenda de Cores */
-        .legend {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 8px;
-            margin-top: 8px;
-            padding-top: 8px;
-            border-top: 1px solid #eee;
-            font-size: 11px;
-        }
-
-        .legend-item {
-            display: flex;
-            align-items: center;
-            gap: 4px;
-        }
-
-        .legend-dot {
-            width: 10px;
-            height: 10px;
-            border-radius: 50%;
-            display: inline-block;
-        }
-
-        /* Ecrã de Carregamento */
-        #loader {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(255, 255, 255, 0.95);
-            z-index: 9999;
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-            transition: opacity 0.5s ease;
-        }
-
-        .spinner {
-            width: 50px;
-            height: 50px;
-            border: 5px solid #f3f3f3;
-            border-top: 5px solid var(--accent-color);
-            border-radius: 50%;
-            animation: spin 1s linear infinite;
-            margin-bottom: 15px;
-        }
-
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
-
-        #loader h2 {
-            font-size: 18px;
-            color: var(--primary-color);
-            margin-bottom: 5px;
-        }
-
-        #loader p {
-            font-size: 13px;
-            color: #666;
-        }
-
-        /* Estilo personalizado das Janelas Popups */
-        .leaflet-popup-content-wrapper {
-            border-radius: 12px;
+            margin: 0;
             padding: 0;
             overflow: hidden;
-            box-shadow: 0 5px 20px rgba(0,0,0,0.3);
+            background-color: #0f2447;
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            -webkit-tap-highlight-color: transparent;
         }
 
-        .leaflet-popup-content {
-            margin: 0;
-            line-height: 1.4;
-            width: 300px !important;
-            max-height: 420px;
-            overflow-y: auto;
+        /* Padrão subtil estilo Azulejo Português */
+        .azulejo-pattern {
+            background-color: #153462;
+            background-image: 
+                radial-gradient(circle at 50% 50%, rgba(212, 175, 55, 0.14) 2px, transparent 2.5px),
+                radial-gradient(circle at 0% 0%, rgba(255, 255, 255, 0.07) 10px, transparent 11px),
+                radial-gradient(circle at 100% 0%, rgba(255, 255, 255, 0.07) 10px, transparent 11px),
+                radial-gradient(circle at 100% 100%, rgba(255, 255, 255, 0.07) 10px, transparent 11px),
+                radial-gradient(circle at 0% 100%, rgba(255, 255, 255, 0.07) 10px, transparent 11px);
+            background-size: 28px 28px;
         }
 
-        .popup-header {
-            background: var(--primary-color);
-            color: white;
-            padding: 10px 14px;
-            font-weight: bold;
-            font-size: 13px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-
-        .popup-badge {
-            font-size: 10px;
-            padding: 2px 6px;
-            border-radius: 4px;
-            text-transform: uppercase;
-            font-weight: bold;
-        }
-
-        /* Cores de Tipologia para Badges e Marcadores */
-        .badge-alminhas { background: #2980b9; color: white; }
-        .badge-nicho { background: #27ae60; color: white; }
-        .badge-cruz { background: #c0392b; color: white; }
-        .badge-nicho-cruz { background: #8e44ad; color: white; }
-        .badge-outro { background: #7f8c8d; color: white; }
-
-        .popup-body {
-            padding: 12px;
-            font-size: 12px;
-        }
-
-        /* Carrossel de Fotos */
-        .carousel-container {
-            position: relative;
-            width: 100%;
-            height: 180px;
-            background: #1a1a1a;
-            margin-bottom: 10px;
-            border-radius: 6px;
-            overflow: hidden;
-        }
-
-        .carousel-img {
+        /* Mapa ocupa o ecrã inteiro atrás dos painéis */
+        #map {
             width: 100%;
             height: 100%;
-            object-fit: contain;
-            display: none;
-        }
-
-        .carousel-img.active {
-            display: block;
-        }
-
-        .carousel-btn {
-            position: absolute;
-            top: 50%;
-            transform: translateY(-50%);
-            background: rgba(0,0,0,0.5);
-            color: white;
-            border: none;
-            cursor: pointer;
-            padding: 6px 10px;
-            font-size: 12px;
-            border-radius: 4px;
             z-index: 10;
         }
 
-        .carousel-btn.prev { left: 5px; }
-        .carousel-btn.next { right: 5px; }
-        
-        .carousel-counter {
-            position: absolute;
-            bottom: 5px;
-            right: 8px;
-            background: rgba(0,0,0,0.6);
-            color: white;
-            font-size: 10px;
-            padding: 2px 5px;
-            border-radius: 3px;
-        }
-
-        .popup-row {
-            margin-bottom: 6px;
-        }
-
-        .popup-row strong {
-            color: #444;
-        }
-
-        .popup-description {
-            font-style: italic;
-            color: #555;
-            background: #f9f9f9;
-            padding: 6px;
-            border-left: 3px solid #ccc;
-            margin: 8px 0;
-            max-height: 90px;
-            overflow-y: auto;
-        }
-
-        .popup-actions {
-            display: flex;
-            gap: 6px;
-            margin-top: 10px;
-        }
-
-        .btn-ficha {
-            flex: 1;
-            text-align: center;
-            background: #e74c3c;
-            color: white !important;
-            text-decoration: none;
-            padding: 8px;
-            border-radius: 6px;
-            font-weight: bold;
-            font-size: 11px;
-            transition: background 0.2s;
-        }
-
-        .btn-ficha:hover {
-            background: #c0392b;
-        }
-
-        .btn-gps {
-            text-align: center;
-            background: #34495e;
-            color: white !important;
-            text-decoration: none;
-            padding: 8px 10px;
-            border-radius: 6px;
-            font-weight: bold;
-            font-size: 11px;
-            transition: background 0.2s;
-        }
-
-        .btn-gps:hover {
-            background: #2c3e50;
-        }
-
-        @media (max-width: 600px) {
-            .control-panel {
-                top: auto;
-                bottom: 15px;
-                right: 10px;
-                left: 10px;
-                width: auto;
+        /* Animação de pulso para o marcador do utilizador e alminhas próximas */
+        @keyframes radar-pulse {
+            0% {
+                transform: scale(0.95);
+                box-shadow: 0 0 0 0 rgba(37, 99, 235, 0.7);
             }
+            70% {
+                transform: scale(1);
+                box-shadow: 0 0 0 18px rgba(37, 99, 235, 0);
+            }
+            100% {
+                transform: scale(0.95);
+                box-shadow: 0 0 0 0 rgba(37, 99, 235, 0);
+            }
+        }
+
+        @keyframes gold-pulse {
+            0% {
+                transform: scale(1);
+                box-shadow: 0 0 0 0 rgba(212, 175, 55, 0.85);
+            }
+            70% {
+                transform: scale(1.08);
+                box-shadow: 0 0 0 22px rgba(212, 175, 55, 0);
+            }
+            100% {
+                transform: scale(1);
+                box-shadow: 0 0 0 0 rgba(212, 175, 55, 0);
+            }
+        }
+
+        .user-dot {
+            animation: radar-pulse 2s infinite;
+        }
+
+        .alminha-alert-marker {
+            animation: gold-pulse 1.5s infinite;
+        }
+
+        /* Estilização dos Popups do Leaflet */
+        .leaflet-popup-content-wrapper {
+            border-radius: 16px;
+            padding: 2px;
+            border: 2px solid #d4af37;
+            box-shadow: 0 10px 25px -5px rgba(15, 36, 71, 0.35);
+        }
+        .leaflet-popup-content {
+            margin: 12px 14px;
+            font-family: 'Plus Jakarta Sans', sans-serif;
+        }
+        .leaflet-container a.leaflet-popup-close-button {
+            color: #153462;
+            padding: 6px 8px 0 0;
+        }
+
+        /* Clusters personalizados estilo Azulejo & Ouro */
+        .custom-cluster-icon {
+            background: linear-gradient(135deg, #153462 0%, #0f2447 100%);
+            border: 2.5px solid #d4af37;
+            color: #ffffff;
+            border-radius: 9999px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 800;
+            font-size: 12px;
+            box-shadow: 0 6px 16px rgba(15, 36, 71, 0.45);
+        }
+        .custom-cluster-large {
+            background: linear-gradient(135deg, #b59024 0%, #d4af37 100%);
+            border: 2.5px solid #0f2447;
+            color: #0f2447;
+        }
+
+        /* Scrollbar limpa */
+        ::-webkit-scrollbar {
+            width: 5px;
+            height: 5px;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 10px;
+        }
+        .no-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+        .no-scrollbar {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
         }
     </style>
 </head>
-<body>
+<body class="relative select-none text-slate-800">
 
-    <div id="loader">
-        <div class="spinner"></div>
-        <h2>A carregar base de dados do PRP...</h2>
-        <p>A sincronizar registos e fotografias da aba DISTRITO (v2.0)</p>
+    <!-- ================= CABEÇALHO SUPERIOR ================= -->
+    <header class="fixed top-0 left-0 right-0 z-30 azulejo-pattern text-white shadow-lg border-b-2 border-dourado-500/80 px-3 pt-2 pb-2">
+        <div class="max-w-xl mx-auto flex items-center justify-between gap-2">
+            <!-- Marca & Estado GPS / Base de Dados -->
+            <div class="flex items-center gap-2 min-w-0">
+                <div class="w-9 h-9 rounded-xl bg-gradient-to-br from-dourado-400 to-dourado-600 flex items-center justify-center shadow-md border border-white/30 shrink-0">
+                    <!-- Ícone SVG Nicho de Alminha -->
+                    <svg class="w-5 h-5 text-azulejo-900" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M11 2v2H9v2h2v2.1A7.002 7.002 0 0 0 5 15v5H3v2h18v-2h-2v-5a7.002 7.002 0 0 0-6-6.9V6h2V4h-2V2h-2zm1 8a5 5 0 0 1 5 5v5H7v-5a5 5 0 0 1 5-5zm0 2.5a2 2 0 0 0-2 2V18h4v-3.5a2 2 0 0 0-2-2z"/>
+                    </svg>
+                </div>
+                <div class="min-w-0">
+                    <div class="flex items-center gap-1.5">
+                        <h1 class="font-serif font-bold text-sm sm:text-base tracking-wide text-white truncate">Rota das Alminhas</h1>
+                    </div>
+                    <div class="flex items-center gap-1.5 mt-0.5">
+                        <span id="gpsStatusDot" class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse shrink-0"></span>
+                        <span id="gpsStatusText" class="text-[10px] text-azulejo-100 font-medium truncate">GPS / Simulador Ativo</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Controlos Rápidos: Google Sheets, Raio de Alerta, Som e Lista -->
+            <div class="flex items-center gap-1.5 shrink-0">
+                <!-- Botão Destaque Google Sheets Sync -->
+                <button onclick="openSheetsModal()" class="px-2.5 py-1.5 rounded-xl bg-gradient-to-r from-emerald-600 to-emerald-500 hover:from-emerald-500 hover:to-emerald-400 text-white border border-emerald-300/60 shadow-md flex items-center gap-1.5 active:scale-95 transition" title="Ligar ou Sincronizar Base de Dados Google Sheets (7053+ monumentos)">
+                    <i id="sheetsSyncIcon" class="fa-solid fa-table text-xs"></i>
+                    <span class="text-[11px] font-bold tracking-tight hidden xs:inline sm:inline">Sheets</span>
+                    <span id="totalBadge" class="bg-azulejo-900/90 text-dourado-300 font-extrabold text-[10px] px-1.5 py-0.5 rounded-full">16</span>
+                </button>
+
+                <!-- Seletor de Raio de Alerta -->
+                <div class="bg-azulejo-900/80 border border-dourado-500/50 rounded-xl px-2 py-1 flex items-center gap-1" title="Raio de Alerta de Proximidade">
+                    <i class="fa-solid fa-bullseye text-dourado-400 text-xs"></i>
+                    <select id="radiusSelect" onchange="updateAlertRadius(this.value)" class="bg-transparent text-white text-xs font-semibold focus:outline-none cursor-pointer">
+                        <option value="50" class="text-slate-900">50m</option>
+                        <option value="100" selected class="text-slate-900">100m</option>
+                        <option value="250" class="text-slate-900">250m</option>
+                        <option value="500" class="text-slate-900">500m</option>
+                        <option value="1000" class="text-slate-900">1 km</option>
+                    </select>
+                </div>
+
+                <!-- Botão Som (Sino de Capela) -->
+                <button id="soundToggleBtn" onclick="toggleSound()" class="w-8 h-8 rounded-xl bg-azulejo-900/80 border border-dourado-500/50 flex items-center justify-center text-dourado-400 hover:bg-azulejo-800 active:scale-95 transition" title="Ativar/Desativar Sino Sonoro">
+                    <i id="soundIcon" class="fa-solid fa-bell text-xs"></i>
+                </button>
+
+                <!-- Botão Inventário / Pesquisa -->
+                <button onclick="openListModal()" class="w-8 h-8 rounded-xl bg-azulejo-900/80 border border-dourado-500/50 flex items-center justify-center text-white hover:bg-azulejo-800 active:scale-95 transition" title="Pesquisar nos 7053+ Monumentos">
+                    <i class="fa-solid fa-magnifying-glass text-xs"></i>
+                </button>
+
+                <!-- Botão Guia Alojamento Netlify / GitHub -->
+                <button onclick="openHostingGuideModal()" class="w-8 h-8 rounded-xl bg-dourado-500/20 border border-dourado-400 flex items-center justify-center text-dourado-300 hover:bg-dourado-500/30 active:scale-95 transition" title="Passo a Passo: Alojar no Netlify e Telemóvel">
+                    <i class="fa-solid fa-cloud-arrow-up text-xs"></i>
+                </button>
+            </div>
+        </div>
+
+        <!-- Barra de Filtros por Tipologia de Monumento -->
+        <div class="max-w-xl mx-auto mt-2 flex items-center gap-1.5 overflow-x-auto no-scrollbar pb-0.5">
+            <button onclick="setCategoryFilter('ALL')" id="catBtn-ALL" class="px-2.5 py-1 rounded-full text-[11px] font-bold bg-dourado-500 text-azulejo-900 shadow-sm flex items-center gap-1 shrink-0 transition">
+                <i class="fa-solid fa-layer-group text-[10px]"></i>
+                <span>Todos</span>
+                <span id="count-ALL" class="text-[10px] opacity-80">(16)</span>
+            </button>
+            <button onclick="setCategoryFilter('Alminhas')" id="catBtn-Alminhas" class="px-2.5 py-1 rounded-full text-[11px] font-semibold bg-azulejo-900/80 text-azulejo-100 border border-white/15 hover:bg-azulejo-800 flex items-center gap-1 shrink-0 transition">
+                <i class="fa-solid fa-fire-flame-simple text-amber-400 text-[10px]"></i>
+                <span>Alminhas</span>
+                <span id="count-Alminhas" class="text-[10px] opacity-75"></span>
+            </button>
+            <button onclick="setCategoryFilter('Nicho')" id="catBtn-Nicho" class="px-2.5 py-1 rounded-full text-[11px] font-semibold bg-azulejo-900/80 text-azulejo-100 border border-white/15 hover:bg-azulejo-800 flex items-center gap-1 shrink-0 transition">
+                <i class="fa-solid fa-archway text-sky-300 text-[10px]"></i>
+                <span>Nichos</span>
+                <span id="count-Nicho" class="text-[10px] opacity-75"></span>
+            </button>
+            <button onclick="setCategoryFilter('Cruzeiro')" id="catBtn-Cruzeiro" class="px-2.5 py-1 rounded-full text-[11px] font-semibold bg-azulejo-900/80 text-azulejo-100 border border-white/15 hover:bg-azulejo-800 flex items-center gap-1 shrink-0 transition">
+                <i class="fa-solid fa-cross text-emerald-300 text-[10px]"></i>
+                <span>Cruzeiros e Cruzes</span>
+                <span id="count-Cruzeiro" class="text-[10px] opacity-75"></span>
+            </button>
+            <button onclick="setCategoryFilter('Nicho-Cruz')" id="catBtn-Nicho-Cruz" class="px-2.5 py-1 rounded-full text-[11px] font-semibold bg-azulejo-900/80 text-azulejo-100 border border-white/15 hover:bg-azulejo-800 flex items-center gap-1 shrink-0 transition">
+                <i class="fa-solid fa-church text-purple-300 text-[10px]"></i>
+                <span>Nichos-Cruzes</span>
+                <span id="count-Nicho-Cruz" class="text-[10px] opacity-75"></span>
+            </button>
+        </div>
+    </header>
+
+    <!-- ================= BANNER DE ALERTA DE PROXIMIDADE ================= -->
+    <div id="proximityBanner" class="fixed top-28 left-3 right-3 z-40 max-w-md mx-auto hidden transform transition-all duration-300">
+        <div class="bg-gradient-to-r from-azulejo-900 via-azulejo-800 to-azulejo-900 text-white rounded-2xl p-3.5 shadow-2xl border-2 border-dourado-400 flex items-center justify-between gap-3">
+            <div class="flex items-center gap-3">
+                <div class="w-12 h-12 rounded-2xl bg-dourado-500 text-azulejo-900 flex items-center justify-center shrink-0 shadow-inner animate-bounce">
+                    <i class="fa-solid fa-bell text-xl"></i>
+                </div>
+                <div>
+                    <div class="flex items-center gap-1.5">
+                        <span id="alertBannerCategory" class="px-2 py-0.5 text-[10px] font-extrabold uppercase tracking-wider bg-dourado-500 text-azulejo-900 rounded-full">Alminha Próxima!</span>
+                        <span id="alertBannerDist" class="text-xs font-bold text-dourado-300">a 45 m</span>
+                    </div>
+                    <h3 id="alertBannerTitle" class="font-serif font-bold text-sm sm:text-base text-white mt-0.5 leading-snug">Alminhas da Ponte</h3>
+                    <p id="alertBannerDesc" class="text-xs text-azulejo-100 line-clamp-1">Está dentro do raio de alerta definido.</p>
+                </div>
+            </div>
+            <div class="flex flex-col gap-1 shrink-0">
+                <button onclick="focusAlertedAlminha()" class="px-2.5 py-1.5 bg-dourado-500 hover:bg-dourado-400 text-azulejo-900 font-bold text-xs rounded-lg transition">
+                    Ver
+                </button>
+                <button onclick="dismissAlertBanner()" class="px-2.5 py-1 bg-white/10 hover:bg-white/20 text-white text-[11px] rounded-lg transition">
+                    Fechar
+                </button>
+            </div>
+        </div>
     </div>
 
-    <div class="control-panel">
-        <h1>🏛️ Alminhas Digital</h1>
-        <p class="subtitle">Património Religioso Popular (v2.0 - Coluna U/V)</p>
-        
-        <div class="filter-group">
-            <label for="select-concelho">Filtrar por Concelho:</label>
-            <select id="select-concelho">
-                <option value="TODOS">Todos os Concelhos</option>
-            </select>
-        </div>
-
-        <div class="filter-group">
-            <label for="select-tipologia">Filtrar por Tipologia:</label>
-            <select id="select-tipologia">
-                <option value="TODOS">Todas as Tipologias</option>
-                <option value="Alminhas">Alminhas</option>
-                <option value="Nicho">Nicho</option>
-                <option value="Cruz">Cruz</option>
-                <option value="Nicho-Cruz">Nicho-Cruz</option>
-            </select>
-        </div>
-
-        <div class="legend">
-            <div class="legend-item"><span class="legend-dot" style="background:#2980b9;"></span> Alminhas</div>
-            <div class="legend-item"><span class="legend-dot" style="background:#27ae60;"></span> Nicho</div>
-            <div class="legend-item"><span class="legend-dot" style="background:#c0392b;"></span> Cruz</div>
-            <div class="legend-item"><span class="legend-dot" style="background:#8e44ad;"></span> Nicho-Cruz</div>
-        </div>
-
-        <div class="stats">
-            <span id="stat-total">A carregar registos...</span>
-            <span id="stat-fotos"></span>
+    <!-- Banner de Modo Clique no Mapa -->
+    <div id="mapClickBanner" class="fixed top-28 left-3 right-3 z-40 max-w-md mx-auto hidden">
+        <div class="bg-amber-600 text-white rounded-xl px-4 py-2.5 shadow-xl border border-amber-300 flex items-center justify-between text-xs font-semibold">
+            <div class="flex items-center gap-2">
+                <i class="fa-solid fa-hand-pointer animate-bounce text-sm"></i>
+                <span>Toque em qualquer ponto do mapa para colocar o novo Monumento</span>
+            </div>
+            <button onclick="cancelMapPickMode()" class="bg-black/20 px-2.5 py-1 rounded-lg hover:bg-black/30">Cancelar</button>
         </div>
     </div>
 
-    <div id="map"></div>
+    <!-- ================= CONTENTOR DO MAPA ================= -->
+    <main class="w-full h-full relative">
+        <div id="map"></div>
 
-    <!-- Leaflet & Clustering JS -->
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    <script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
+        <!-- Seletor Rápido de Camadas Google Maps + Modo de Performance (Esquerda Inferior) -->
+        <div class="fixed left-3 bottom-48 sm:bottom-44 z-20 flex flex-col gap-1.5">
+            <!-- Filtro de Alcance Visual no Mapa (Performance para 7053+ pontos) -->
+            <div class="bg-azulejo-900/95 backdrop-blur-md text-white rounded-xl shadow-lg border border-dourado-500/50 px-2.5 py-1 flex items-center gap-1.5 text-[11px]">
+                <i class="fa-solid fa-bolt text-dourado-400 text-[10px]"></i>
+                <span class="text-azulejo-100 font-medium">Ver no Mapa:</span>
+                <select id="renderScopeSelect" onchange="changeRenderScope(this.value)" class="bg-transparent font-bold text-dourado-300 focus:outline-none cursor-pointer">
+                    <option value="ALL" class="text-slate-900" selected>Todos (Clusters)</option>
+                    <option value="5000" class="text-slate-900">Raio 5 km</option>
+                    <option value="15000" class="text-slate-900">Raio 15 km</option>
+                    <option value="50000" class="text-slate-900">Raio 50 km</option>
+                </select>
+            </div>
+
+            <!-- Camadas Google Maps -->
+            <div class="bg-white/95 backdrop-blur-md rounded-2xl shadow-xl border-2 border-azulejo-800/20 p-1 flex items-center gap-1">
+                <button id="layerBtn-m" onclick="setGoogleLayer('m')" class="px-2.5 py-1.5 rounded-xl text-[11px] font-bold transition flex items-center gap-1 bg-azulejo-800 text-white shadow-sm">
+                    <i class="fa-solid fa-road text-dourado-400"></i>
+                    <span>Mapa</span>
+                </button>
+                <button id="layerBtn-y" onclick="setGoogleLayer('y')" class="px-2.5 py-1.5 rounded-xl text-[11px] font-bold transition flex items-center gap-1 text-azulejo-900 hover:bg-azulejo-50">
+                    <i class="fa-solid fa-earth-europe text-azulejo-600"></i>
+                    <span>Híbrido</span>
+                </button>
+                <button id="layerBtn-s" onclick="setGoogleLayer('s')" class="px-2.5 py-1.5 rounded-xl text-[11px] font-bold transition flex items-center gap-1 text-azulejo-900 hover:bg-azulejo-50">
+                    <i class="fa-solid fa-satellite text-azulejo-600"></i>
+                    <span>Satélite</span>
+                </button>
+                <button id="layerBtn-p" onclick="setGoogleLayer('p')" class="px-2.5 py-1.5 rounded-xl text-[11px] font-bold transition flex items-center gap-1 text-azulejo-900 hover:bg-azulejo-50">
+                    <i class="fa-solid fa-mountain-sun text-azulejo-600"></i>
+                    <span>Terreno</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- Botões Flutuantes Direita (Controlo de Mapa e Simulação) -->
+        <div class="fixed right-3 top-28 z-20 flex flex-col gap-2">
+            <!-- Centrar na minha localização -->
+            <button onclick="centerOnUser()" class="w-10 h-10 rounded-2xl bg-white/95 backdrop-blur text-azulejo-800 shadow-lg border border-azulejo-200 flex items-center justify-center hover:bg-azulejo-50 active:scale-95 transition" title="Centrar na minha posição">
+                <i class="fa-solid fa-location-crosshairs text-base text-azulejo-600"></i>
+            </button>
+
+            <!-- Ativar GPS Real -->
+            <button onclick="requestRealGPS()" class="w-10 h-10 rounded-2xl bg-white/95 backdrop-blur text-azulejo-800 shadow-lg border border-azulejo-200 flex items-center justify-center hover:bg-azulejo-50 active:scale-95 transition" title="Obter GPS Real do Telemóvel">
+                <i class="fa-solid fa-satellite-dish text-sm text-emerald-600"></i>
+            </button>
+
+            <!-- Ligar Google Sheets (7053+) -->
+            <button onclick="openSheetsModal()" class="w-10 h-10 rounded-2xl bg-emerald-600 text-white shadow-lg border-2 border-white flex items-center justify-center hover:bg-emerald-500 active:scale-95 transition" title="Ligar Google Sheets (7053+ Monumentos)">
+                <i class="fa-solid fa-cloud-arrow-down text-sm"></i>
+            </button>
+
+            <!-- Mostrar/Ocultar Controlo de Simulação -->
+            <button id="simToggleBtn" onclick="toggleSimPad()" class="w-10 h-10 rounded-2xl bg-azulejo-800 text-dourado-400 shadow-lg border-2 border-dourado-500 flex items-center justify-center hover:bg-azulejo-700 active:scale-95 transition" title="Simulador de Movimento">
+                <i class="fa-solid fa-gamepad text-base"></i>
+            </button>
+
+            <!-- Testar Som do Sino -->
+            <button onclick="playChapelBell()" class="w-10 h-10 rounded-2xl bg-white/95 backdrop-blur text-azulejo-800 shadow-lg border border-azulejo-200 flex items-center justify-center hover:bg-azulejo-50 active:scale-95 transition" title="Testar toque do sino">
+                <i class="fa-solid fa-volume-high text-sm text-dourado-600"></i>
+            </button>
+        </div>
+
+        <!-- ================= JOYSTICK / SIMULADOR DE CAMINHADA ================= -->
+        <div id="simPadPanel" class="fixed left-3 top-28 z-20 bg-white/95 backdrop-blur-md rounded-2xl shadow-xl border-2 border-azulejo-800/20 p-2.5 w-44 transition-all">
+            <div class="flex items-center justify-between border-b border-slate-200 pb-1.5 mb-2">
+                <span class="text-[11px] font-bold uppercase tracking-wider text-azulejo-800 flex items-center gap-1">
+                    <i class="fa-solid fa-person-walking text-dourado-600"></i> Simular Passos
+                </span>
+                <button onclick="toggleSimPad()" class="text-slate-400 hover:text-slate-600 text-xs px-1">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+
+            <!-- D-Pad Direcional -->
+            <div class="grid grid-cols-3 gap-1.5 place-items-center my-1">
+                <div></div>
+                <button onclick="moveUserStep(1, 0)" class="w-10 h-9 rounded-xl bg-azulejo-50 hover:bg-azulejo-100 active:bg-azulejo-200 text-azulejo-800 border border-azulejo-200 flex items-center justify-center font-bold shadow-sm active:scale-95 transition" title="Norte (+25m)">
+                    <i class="fa-solid fa-chevron-up text-xs"></i>
+                </button>
+                <div></div>
+
+                <button onclick="moveUserStep(0, -1)" class="w-10 h-9 rounded-xl bg-azulejo-50 hover:bg-azulejo-100 active:bg-azulejo-200 text-azulejo-800 border border-azulejo-200 flex items-center justify-center font-bold shadow-sm active:scale-95 transition" title="Oeste (-25m)">
+                    <i class="fa-solid fa-chevron-left text-xs"></i>
+                </button>
+                <button onclick="stepTowardsNearest()" class="w-10 h-9 rounded-xl bg-dourado-500 hover:bg-dourado-400 text-azulejo-900 flex items-center justify-center shadow-sm active:scale-95 transition" title="Caminhar na direção do Monumento mais próximo">
+                    <i class="fa-solid fa-magnet text-xs"></i>
+                </button>
+                <button onclick="moveUserStep(0, 1)" class="w-10 h-9 rounded-xl bg-azulejo-50 hover:bg-azulejo-100 active:bg-azulejo-200 text-azulejo-800 border border-azulejo-200 flex items-center justify-center font-bold shadow-sm active:scale-95 transition" title="Este (+25m)">
+                    <i class="fa-solid fa-chevron-right text-xs"></i>
+                </button>
+
+                <div></div>
+                <button onclick="moveUserStep(-1, 0)" class="w-10 h-9 rounded-xl bg-azulejo-50 hover:bg-azulejo-100 active:bg-azulejo-200 text-azulejo-800 border border-azulejo-200 flex items-center justify-center font-bold shadow-sm active:scale-95 transition" title="Sul (-25m)">
+                    <i class="fa-solid fa-chevron-down text-xs"></i>
+                </button>
+                <div></div>
+            </div>
+
+            <!-- Botão Caminhada Automática -->
+            <button id="autoWalkBtn" onclick="toggleAutoWalk()" class="w-full mt-2 py-1.5 px-2 rounded-xl bg-azulejo-800 hover:bg-azulejo-700 text-white font-semibold text-[11px] flex items-center justify-center gap-1.5 shadow transition">
+                <i id="autoWalkIcon" class="fa-solid fa-play text-[10px] text-dourado-400"></i>
+                <span id="autoWalkText">Ir até ao Monumento</span>
+            </button>
+            <p class="text-[10px] text-slate-500 text-center mt-1 leading-tight">Dica: Arraste também o marcador azul no mapa</p>
+        </div>
+    </main>
+
+    <!-- ================= PAINEL INFERIOR: MONUMENTO MAIS PRÓXIMO & AÇÕES ================= -->
+    <section class="fixed bottom-0 left-0 right-0 z-30 p-2.5 sm:p-3 pointer-events-none">
+        <div class="max-w-xl mx-auto bg-white/95 backdrop-blur-md rounded-3xl shadow-2xl border-2 border-dourado-500/70 p-3.5 pointer-events-auto">
+            
+            <!-- Cartão do Monumento Mais Próximo -->
+            <div class="flex items-center justify-between gap-3">
+                <!-- Bússola / Indicador de Direção e Distância -->
+                <div onclick="focusNearestAlminha()" class="cursor-pointer flex items-center gap-3 flex-1 min-w-0">
+                    <div id="nearestBadgeBox" class="w-16 h-16 rounded-2xl bg-azulejo-900 text-white flex flex-col items-center justify-center shrink-0 border-2 border-dourado-400 shadow-md relative">
+                        <i id="directionArrow" class="fa-solid fa-location-arrow text-dourado-400 text-base mb-0.5 transition-transform duration-300"></i>
+                        <span id="nearestDistanceValue" class="font-extrabold text-sm leading-none tracking-tight">-- m</span>
+                        <span id="nearestCardinal" class="text-[9px] text-azulejo-200 uppercase font-semibold mt-0.5">Norte</span>
+                    </div>
+
+                    <div class="min-w-0 flex-1">
+                        <div class="flex items-center gap-1.5">
+                            <span id="nearestCategoryBadge" class="text-[10px] font-bold uppercase tracking-wider text-azulejo-800 bg-dourado-300/60 border border-dourado-500/40 px-2 py-0.5 rounded-full shrink-0">
+                                Alminhas
+                            </span>
+                            <span id="nearestRegion" class="text-[11px] font-medium text-slate-500 truncate">Santa Maria da Feira</span>
+                        </div>
+                        <h2 id="nearestName" class="font-serif font-bold text-base text-azulejo-900 truncate mt-0.5">
+                            A calcular...
+                        </h2>
+                        <p id="nearestDescription" class="text-xs text-slate-600 line-clamp-1 mt-0.5">
+                            A determinar o monumento mais perto da sua posição...
+                        </p>
+                    </div>
+                </div>
+
+                <!-- Botões Focar no Mapa & Abrir Navegação Google Maps -->
+                <div class="flex items-center gap-1.5 shrink-0">
+                    <button onclick="focusNearestAlminha()" class="w-10 h-10 rounded-2xl bg-azulejo-50 hover:bg-azulejo-100 text-azulejo-800 border border-azulejo-200 flex items-center justify-center active:scale-95 transition" title="Ver no Mapa">
+                        <i class="fa-solid fa-eye text-sm"></i>
+                    </button>
+                    <a id="nearestGmapsLink" href="#" target="_blank" rel="noopener noreferrer" class="w-10 h-10 rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white shadow flex items-center justify-center active:scale-95 transition" title="Abrir no Google Maps (Navegação)">
+                        <i class="fa-solid fa-diamond-turn-right text-sm"></i>
+                    </a>
+                </div>
+            </div>
+
+            <!-- Barra de Progresso de Proximidade -->
+            <div class="mt-2.5 bg-slate-100 h-2 rounded-full overflow-hidden border border-slate-200/80">
+                <div id="proximityProgressBar" class="h-full bg-gradient-to-r from-azulejo-600 via-dourado-500 to-emerald-500 transition-all duration-300" style="width: 25%"></div>
+            </div>
+
+            <!-- Botões de Ação Principal -->
+            <div class="grid grid-cols-3 gap-2 mt-3">
+                <button onclick="openSheetsModal()" class="py-2.5 px-2 rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs flex items-center justify-center gap-1.5 shadow-md active:scale-95 transition">
+                    <i class="fa-solid fa-table"></i>
+                    <span class="truncate">Google Sheets</span>
+                </button>
+
+                <button onclick="generateRandomNearbyAlminha()" class="py-2.5 px-2 rounded-2xl bg-gradient-to-r from-dourado-500 to-dourado-600 hover:from-dourado-400 hover:to-dourado-500 text-azulejo-900 font-bold text-xs flex items-center justify-center gap-1.5 shadow-md active:scale-95 transition">
+                    <i class="fa-solid fa-wand-magic-sparkles"></i>
+                    <span class="truncate">Gerar Perto</span>
+                </button>
+
+                <button onclick="openAddModal()" class="py-2.5 px-2 rounded-2xl bg-azulejo-800 hover:bg-azulejo-700 text-white font-semibold text-xs flex items-center justify-center gap-1.5 shadow-md active:scale-95 transition">
+                    <i class="fa-solid fa-plus-circle text-dourado-400"></i>
+                    <span class="truncate">Adicionar</span>
+                </button>
+            </div>
+        </div>
+    </section>
+
+    <!-- ================= MODAL: LIGAÇÃO EM TEMPO REAL GOOGLE SHEETS (7.053+ MONUMENTOS) ================= -->
+    <div id="sheetsModal" class="fixed inset-0 z-50 bg-azulejo-900/75 backdrop-blur-sm hidden flex items-end sm:items-center justify-center p-0 sm:p-4">
+        <div class="bg-white w-full max-w-lg rounded-t-3xl sm:rounded-3xl shadow-2xl border-t-4 sm:border-2 border-dourado-500 overflow-hidden max-h-[90vh] flex flex-col">
+            <!-- Topo -->
+            <div class="azulejo-pattern px-5 py-4 text-white flex items-center justify-between shrink-0">
+                <div class="flex items-center gap-2.5">
+                    <div class="w-9 h-9 rounded-xl bg-emerald-500/20 border border-emerald-400/50 flex items-center justify-center text-emerald-300">
+                        <i class="fa-solid fa-table text-lg"></i>
+                    </div>
+                    <div>
+                        <h3 class="font-serif font-bold text-base sm:text-lg leading-tight">Ligar Google Sheets (7.053+ Registos)</h3>
+                        <p class="text-[11px] text-azulejo-100">Sincronização direta em tempo real + Cache Offline</p>
+                    </div>
+                </div>
+                <button onclick="closeSheetsModal()" class="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center text-white">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+
+            <!-- Corpo do Modal -->
+            <div class="p-4 sm:p-5 overflow-y-auto space-y-4 text-xs sm:text-sm flex-1">
+                
+                <!-- Estado da Sincronização Atual -->
+                <div class="bg-slate-50 border border-slate-200 rounded-2xl p-3 flex items-center justify-between gap-2">
+                    <div class="flex items-center gap-2.5">
+                        <div id="syncStatusBadgeIcon" class="w-9 h-9 rounded-xl bg-azulejo-100 text-azulejo-800 flex items-center justify-center font-bold">
+                            <i class="fa-solid fa-database"></i>
+                        </div>
+                        <div>
+                            <div class="text-xs font-bold text-azulejo-900" id="syncStatusTitle">Base de Dados Local Ativa</div>
+                            <div class="text-[11px] text-slate-500" id="syncStatusSubtitle">16 monumentos carregados em memória</div>
+                        </div>
+                    </div>
+                    <button id="btnRefreshNow" onclick="syncFromSavedSheetUrl()" class="px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs flex items-center gap-1.5 shadow-sm transition">
+                        <i class="fa-solid fa-rotate"></i> Atualizar Agora
+                    </button>
+                </div>
+
+                <!-- Opção 1: Colar Link do Google Sheets -->
+                <div class="space-y-2">
+                    <label class="block text-xs font-bold uppercase tracking-wider text-azulejo-900">
+                        1. Link da sua Folha do Google Sheets (URL ou CSV):
+                    </label>
+                    <div class="flex gap-2">
+                        <input type="url" id="sheetsUrlInput" placeholder="Cole aqui o link do Google Sheets (docs.google.com/spreadsheets/d/...)" class="flex-1 px-3.5 py-2.5 rounded-xl border border-slate-300 focus:border-emerald-600 focus:outline-none text-xs font-mono">
+                        <button onclick="connectGoogleSheetFromInput()" class="px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs shrink-0 shadow-md flex items-center gap-1.5 transition">
+                            <i class="fa-solid fa-cloud-arrow-down"></i> Sincronizar
+                        </button>
+                    </div>
+                    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pt-1">
+                        <label class="flex items-center gap-2 text-xs text-slate-600 cursor-pointer">
+                            <input type="checkbox" id="autoSyncToggle" checked onchange="toggleAutoSyncSetting(this.checked)" class="rounded text-emerald-600 focus:ring-0">
+                            <span>Sincronizar automaticamente ao abrir a app</span>
+                        </label>
+                        <label class="flex items-center gap-2 text-xs font-semibold text-emerald-800 bg-emerald-50 px-2.5 py-1 rounded-lg border border-emerald-200 cursor-pointer">
+                            <input type="checkbox" id="autoFixPortugalCoordsToggle" checked class="rounded text-emerald-600 focus:ring-0">
+                            <span>Anti-Mar: Fixar Coluna H (LAT) e Coluna I (LONG)</span>
+                        </label>
+                    </div>
+                </div>
+
+                    <!-- Confirmação Coluna H (LAT) e Coluna I (LONG) + Botão de Reparação Imediata -->
+                <div class="bg-emerald-50/90 border-2 border-emerald-400/80 rounded-2xl p-3.5 space-y-2.5">
+                    <div class="flex items-start justify-between gap-2">
+                        <div class="flex items-center gap-2">
+                            <span class="w-7 h-7 rounded-lg bg-emerald-600 text-white flex items-center justify-center shrink-0 text-xs font-bold">
+                                <i class="fa-solid fa-compass-drafting"></i>
+                            </span>
+                            <div>
+                                <h4 class="text-xs font-extrabold text-emerald-950">Suporte Direto `"40.455126, -8.500566"` (Pontos e Vírgulas)</h4>
+                                <p class="text-[11px] text-emerald-800 leading-snug">
+                                    Lê automaticamente coordenadas separadas na <strong>Coluna H (`LAT`) e Coluna I (`LONG`)</strong> ou juntas numa única célula (ex: <code>"40.455126, -8.500566"</code>), convertendo pontos (<code>.</code>) e vírgulas (<code>,</code>) sem distorcer as 6 casas decimais.
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="flex flex-wrap items-center gap-2 pt-1">
+                        <button onclick="repairExistingCachedCoordinates()" class="flex-1 py-2 px-3 rounded-xl bg-emerald-700 hover:bg-emerald-600 text-white font-bold text-xs flex items-center justify-center gap-1.5 shadow-sm active:scale-95 transition">
+                            <i class="fa-solid fa-wand-magic-sparkles text-dourado-300"></i>
+                            <span>Forçar Releitura e Corrigir Pontos/Vírgulas Agora</span>
+                        </button>
+                    </div>
+
+                    <!-- Relatório de Diagnóstico de Coordenadas -->
+                    <div id="coordDiagnosticBox" class="hidden bg-white rounded-xl p-2.5 border border-emerald-200 text-[11px] space-y-1.5">
+                        <div class="font-bold text-azulejo-900 flex items-center justify-between">
+                            <span><i class="fa-solid fa-stethoscope text-emerald-600 mr-1"></i> Relatório de Validação de Coordenadas:</span>
+                            <span id="diagColsUsed" class="text-[10px] font-mono bg-azulejo-50 text-azulejo-800 px-2 py-0.5 rounded border border-azulejo-200">Col H (LAT) | Col I (LONG)</span>
+                        </div>
+                        <div class="grid grid-cols-3 gap-1.5 text-center">
+                            <div class="bg-emerald-50 rounded-lg p-1.5 border border-emerald-100">
+                                <div id="diagValidCount" class="font-extrabold text-sm text-emerald-700">0</div>
+                                <div class="text-[10px] text-slate-600">Válidos em Terra</div>
+                            </div>
+                            <div class="bg-amber-50 rounded-lg p-1.5 border border-amber-200">
+                                <div id="diagFixedCount" class="font-extrabold text-sm text-amber-700">0</div>
+                                <div class="text-[10px] text-slate-600">Corrigidos do Mar</div>
+                            </div>
+                            <div class="bg-rose-50 rounded-lg p-1.5 border border-rose-200">
+                                <div id="diagSkippedCount" class="font-extrabold text-sm text-rose-700">0</div>
+                                <div class="text-[10px] text-slate-600">Sem Coordenadas</div>
+                            </div>
+                        </div>
+                        <div id="diagFixedSamples" class="text-[10px] text-slate-600 font-mono bg-slate-50 p-1.5 rounded border border-slate-200 max-h-24 overflow-y-auto hidden"></div>
+                    </div>
+                </div>
+
+                <!-- Como preparar o Google Sheets em 2 passos simples -->
+                <div class="bg-azulejo-50/80 border border-azulejo-200 rounded-2xl p-3.5 space-y-2">
+                    <div class="font-bold text-xs text-azulejo-900 flex items-center gap-1.5">
+                        <i class="fa-solid fa-circle-info text-azulejo-600"></i>
+                        <span>Como permitir a leitura automática do seu Google Sheets:</span>
+                    </div>
+                    <ol class="list-decimal list-inside text-xs text-slate-700 space-y-1 leading-relaxed">
+                        <li>No seu Google Sheets (com os 7.053 monumentos), vá a <strong>Ficheiro &rarr; Partilhar &rarr; Publicar na Web</strong> (ou partilhe como <em>"Qualquer pessoa com o link pode ver"</em>).</li>
+                        <li>Escolha a folha pretendida, selecione <strong>Valores separados por vírgulas (.csv)</strong> (ou cole diretamente o link normal da folha acima — a app converte automaticamente!).</li>
+                        <li><strong>Colunas reconhecidas automaticamente:</strong> <code class="bg-white px-1.5 py-0.5 rounded border text-[11px]">Nome / Designação</code>, <code class="bg-white px-1.5 py-0.5 rounded border text-[11px]">Tipo / Categoria</code> (Alminhas, Nicho, Cruzeiro...), <code class="bg-white px-1.5 py-0.5 rounded border text-[11px]">Latitude</code> e <code class="bg-white px-1.5 py-0.5 rounded border text-[11px]">Longitude</code> (ou coluna única <code class="bg-white px-1.5 py-0.5 rounded border text-[11px]">Coordenadas</code> ex: <em>"40.925, -8.542"</em>), <code class="bg-white px-1.5 py-0.5 rounded border text-[11px]">Concelho / Freguesia</code> e <code class="bg-white px-1.5 py-0.5 rounded border text-[11px]">Descrição</code>.</li>
+                    </ol>
+                </div>
+
+                <!-- Mapeador Manual de Colunas (Caso a folha tenha nomes personalizados) -->
+                <div id="columnMapperBox" class="hidden bg-amber-50 border border-amber-300 rounded-2xl p-3.5 space-y-2.5">
+                    <div class="font-bold text-xs text-amber-900 flex items-center justify-between">
+                        <span><i class="fa-solid fa-sliders mr-1"></i> Ajustar Colunas Detetadas na Folha</span>
+                        <span id="detectedRowsCount" class="text-[11px] bg-amber-200 text-amber-900 px-2 py-0.5 rounded-full font-extrabold">0 linhas</span>
+                    </div>
+                    <div class="grid grid-cols-2 sm:grid-cols-3 gap-2 text-xs">
+                        <div>
+                            <label class="block text-[10px] font-bold uppercase text-slate-600">Coluna Nome</label>
+                            <select id="mapColName" class="w-full p-1.5 rounded-lg border bg-white text-xs"></select>
+                        </div>
+                        <div>
+                            <label class="block text-[10px] font-bold uppercase text-slate-600">Coluna Tipo</label>
+                            <select id="mapColType" class="w-full p-1.5 rounded-lg border bg-white text-xs"></select>
+                        </div>
+                        <div>
+                            <label class="block text-[10px] font-bold uppercase text-slate-600">Coluna Latitude (ou Coords)</label>
+                            <select id="mapColLat" class="w-full p-1.5 rounded-lg border bg-white text-xs"></select>
+                        </div>
+                        <div>
+                            <label class="block text-[10px] font-bold uppercase text-slate-600">Coluna Longitude</label>
+                            <select id="mapColLng" class="w-full p-1.5 rounded-lg border bg-white text-xs"></select>
+                        </div>
+                        <div>
+                            <label class="block text-[10px] font-bold uppercase text-slate-600">Concelho / Local</label>
+                            <select id="mapColRegion" class="w-full p-1.5 rounded-lg border bg-white text-xs"></select>
+                        </div>
+                        <div>
+                            <label class="block text-[10px] font-bold uppercase text-slate-600">Descrição / Notas</label>
+                            <select id="mapColDesc" class="w-full p-1.5 rounded-lg border bg-white text-xs"></select>
+                        </div>
+                    </div>
+                    <button onclick="applyManualColumnMapping()" class="w-full py-2 rounded-xl bg-amber-600 hover:bg-amber-500 text-white font-bold text-xs shadow">
+                        Confirmar Mapeamento e Importar Registos
+                    </button>
+                </div>
+
+                <!-- Opção 2: Simulador de Stress-Test 7.053 Monumentos & Ficheiro Local -->
+                <div class="border-t border-slate-200 pt-3.5 space-y-2.5">
+                    <div class="text-xs font-bold uppercase tracking-wider text-slate-500">
+                        2. Testar Capacidade 7.053 Monumentos ou Carregar Ficheiro:
+                    </div>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                        <button onclick="generate7053BenchmarkDataset()" class="py-3 px-3 rounded-2xl bg-gradient-to-r from-dourado-500 to-dourado-600 hover:from-dourado-400 hover:to-dourado-500 text-azulejo-900 font-extrabold text-xs flex items-center justify-center gap-2 shadow-md active:scale-95 transition">
+                            <i class="fa-solid fa-bolt text-sm"></i>
+                            <span>Simular 7.053 Monumentos Agora</span>
+                        </button>
+
+                        <button onclick="triggerImportFile()" class="py-3 px-3 rounded-2xl bg-azulejo-800 hover:bg-azulejo-700 text-white font-bold text-xs flex items-center justify-center gap-2 shadow-md active:scale-95 transition">
+                            <i class="fa-solid fa-file-csv text-dourado-400 text-sm"></i>
+                            <span>Importar CSV / GeoJSON Local</span>
+                        </button>
+                    </div>
+                    <input type="file" id="importFileInput" accept=".csv,.tsv,.json,.geojson" class="hidden" onchange="handleFileImport(event)">
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ================= MODAL: ADICIONAR NOVO MONUMENTO ================= -->
+    <div id="addModal" class="fixed inset-0 z-50 bg-azulejo-900/70 backdrop-blur-sm hidden flex items-end sm:items-center justify-center p-0 sm:p-4">
+        <div class="bg-white w-full max-w-md rounded-t-3xl sm:rounded-3xl shadow-2xl border-t-4 sm:border-2 border-dourado-500 overflow-hidden animate-fade-in">
+            <div class="azulejo-pattern px-5 py-4 text-white flex items-center justify-between">
+                <div class="flex items-center gap-2.5">
+                    <i class="fa-solid fa-cross text-dourado-400 text-lg"></i>
+                    <h3 class="font-serif font-bold text-lg">Registar Monumento</h3>
+                </div>
+                <button onclick="closeAddModal()" class="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center text-white">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+
+            <form id="addAlminhaForm" onsubmit="saveNewAlminha(event)" class="p-5 space-y-3 text-sm">
+                <div class="grid grid-cols-3 gap-2">
+                    <div class="col-span-2">
+                        <label class="block text-xs font-bold uppercase text-slate-600 mb-1">Designação / Nome *</label>
+                        <input type="text" id="inputName" required placeholder="Ex: Alminhas de São Bento" class="w-full px-3 py-2 rounded-xl border border-slate-300 focus:border-azulejo-600 focus:outline-none text-xs">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold uppercase text-slate-600 mb-1">Tipologia *</label>
+                        <select id="inputCategory" class="w-full px-2.5 py-2 rounded-xl border border-slate-300 focus:border-azulejo-600 focus:outline-none text-xs bg-white font-semibold">
+                            <option value="Alminhas">Alminhas</option>
+                            <option value="Nicho">Nicho</option>
+                            <option value="Cruzeiro">Cruzeiro / Cruz</option>
+                            <option value="Nicho-Cruz">Nicho-Cruz</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-2 gap-2.5">
+                    <div>
+                        <label class="block text-xs font-bold uppercase text-slate-600 mb-1">Concelho / Freguesia</label>
+                        <input type="text" id="inputRegion" placeholder="Ex: Santa Maria da Feira" class="w-full px-3 py-2 rounded-xl border border-slate-300 focus:border-azulejo-600 focus:outline-none text-xs">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold uppercase text-slate-600 mb-1">Época / Código</label>
+                        <input type="text" id="inputEra" placeholder="Ex: Século XVIII" class="w-full px-3 py-2 rounded-xl border border-slate-300 focus:border-azulejo-600 focus:outline-none text-xs">
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-bold uppercase text-slate-600 mb-1">Descrição / Inscrição Devocional</label>
+                    <textarea id="inputDesc" rows="2" placeholder="Ex: Nicho em granito com painel de azulejos das Almas do Purgatório..." class="w-full px-3 py-2 rounded-xl border border-slate-300 focus:border-azulejo-600 focus:outline-none text-xs"></textarea>
+                </div>
+
+                <!-- Escolha de Localização -->
+                <div class="bg-azulejo-50 p-3 rounded-2xl border border-azulejo-200">
+                    <label class="block text-xs font-bold uppercase text-azulejo-800 mb-2">Coordenadas GPS</label>
+                    <div class="grid grid-cols-2 gap-2 mb-2">
+                        <button type="button" onclick="setFormCoordsToUser()" class="py-2 px-2.5 rounded-xl bg-azulejo-700 text-white text-xs font-semibold flex items-center justify-center gap-1.5 hover:bg-azulejo-800 transition">
+                            <i class="fa-solid fa-location-dot text-dourado-400"></i> Minha Posição Atual
+                        </button>
+                        <button type="button" onclick="startMapPickMode()" class="py-2 px-2.5 rounded-xl bg-white text-azulejo-800 border border-azulejo-300 text-xs font-semibold flex items-center justify-center gap-1.5 hover:bg-azulejo-100 transition">
+                            <i class="fa-solid fa-map-pin text-azulejo-600"></i> Escolher no Mapa
+                        </button>
+                    </div>
+                    <div class="grid grid-cols-2 gap-2 text-xs">
+                        <div>
+                            <span class="text-[10px] text-slate-500 font-semibold">Latitude</span>
+                            <input type="number" step="any" id="inputLat" required class="w-full px-2.5 py-1.5 rounded-lg border border-slate-300 bg-white font-mono text-xs">
+                        </div>
+                        <div>
+                            <span class="text-[10px] text-slate-500 font-semibold">Longitude</span>
+                            <input type="number" step="any" id="inputLng" required class="w-full px-2.5 py-1.5 rounded-lg border border-slate-300 bg-white font-mono text-xs">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="pt-1 flex gap-2">
+                    <button type="button" onclick="closeAddModal()" class="w-1/3 py-3 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold text-xs">
+                        Cancelar
+                    </button>
+                    <button type="submit" class="w-2/3 py-3 rounded-xl bg-gradient-to-r from-azulejo-800 to-azulejo-700 hover:from-azulejo-700 hover:to-azulejo-600 text-white font-bold text-xs shadow-lg flex items-center justify-center gap-2">
+                        <i class="fa-solid fa-check text-dourado-400"></i> Guardar no Mapa
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- ================= MODAL: INVENTÁRIO PESQUISÁVEL (PARA 7.053+ MONUMENTOS) ================= -->
+    <div id="listModal" class="fixed inset-0 z-50 bg-azulejo-900/70 backdrop-blur-sm hidden flex items-end sm:items-center justify-center p-0 sm:p-4">
+        <div class="bg-white w-full max-w-lg rounded-t-3xl sm:rounded-3xl shadow-2xl border-t-4 sm:border-2 border-dourado-500 overflow-hidden max-h-[88vh] flex flex-col">
+            <div class="azulejo-pattern px-5 py-3.5 text-white flex items-center justify-between shrink-0">
+                <div>
+                    <h3 class="font-serif font-bold text-base sm:text-lg">Inventário de Monumentos</h3>
+                    <p id="listSubtitleCount" class="text-[11px] text-azulejo-100">Ordenados por proximidade à sua posição atual</p>
+                </div>
+                <button onclick="closeListModal()" class="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center text-white">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+
+            <!-- Barra de Pesquisa Instantânea + Teletransporte Regional -->
+            <div class="bg-azulejo-50 px-4 py-2.5 border-b border-azulejo-200 space-y-2 shrink-0">
+                <div class="relative">
+                    <i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs"></i>
+                    <input type="text" id="listSearchInput" oninput="renderVirtualList(true)" placeholder="Pesquisar por nome, concelho, freguesia ou código..." class="w-full pl-8 pr-3 py-2 rounded-xl border border-azulejo-200 bg-white text-xs focus:outline-none focus:border-azulejo-600">
+                </div>
+
+                <div class="flex gap-1.5 overflow-x-auto no-scrollbar pb-0.5">
+                    <button onclick="teleportUserTo(40.9254, -8.5428, 'Sta. Maria da Feira')" class="px-2.5 py-1 bg-white hover:bg-azulejo-700 hover:text-white text-azulejo-800 rounded-lg border border-azulejo-200 text-[11px] font-semibold shrink-0 transition">Sta. Maria da Feira</button>
+                    <button onclick="teleportUserTo(40.7932, -8.3168, 'Vale de Cambra / Arões')" class="px-2.5 py-1 bg-white hover:bg-azulejo-700 hover:text-white text-azulejo-800 rounded-lg border border-azulejo-200 text-[11px] font-semibold shrink-0 transition">Vale de Cambra (Arões)</button>
+                    <button onclick="teleportUserTo(41.5503, -8.4200, 'Braga')" class="px-2.5 py-1 bg-white hover:bg-azulejo-700 hover:text-white text-azulejo-800 rounded-lg border border-azulejo-200 text-[11px] font-semibold shrink-0 transition">Braga</button>
+                    <button onclick="teleportUserTo(41.1496, -8.6110, 'Porto')" class="px-2.5 py-1 bg-white hover:bg-azulejo-700 hover:text-white text-azulejo-800 rounded-lg border border-azulejo-200 text-[11px] font-semibold shrink-0 transition">Porto</button>
+                    <button onclick="teleportUserTo(40.6566, -7.9125, 'Viseu')" class="px-2.5 py-1 bg-white hover:bg-azulejo-700 hover:text-white text-azulejo-800 rounded-lg border border-azulejo-200 text-[11px] font-semibold shrink-0 transition">Viseu</button>
+                    <button onclick="teleportUserTo(41.7671, -8.5839, 'Ponte de Lima')" class="px-2.5 py-1 bg-white hover:bg-azulejo-700 hover:text-white text-azulejo-800 rounded-lg border border-azulejo-200 text-[11px] font-semibold shrink-0 transition">Ponte de Lima</button>
+                </div>
+            </div>
+
+            <!-- Lista paginada rápida -->
+            <div id="alminhasListContainer" class="p-3.5 overflow-y-auto space-y-2 flex-1"></div>
+        </div>
+    </div>
+
+    <!-- ================= MODAL: PASSO A PASSO ALOJAR NO NETLIFY & GITHUB ================= -->
+    <div id="hostingGuideModal" class="fixed inset-0 z-50 bg-azulejo-900/75 backdrop-blur-sm hidden flex items-end sm:items-center justify-center p-0 sm:p-4">
+        <div class="bg-white w-full max-w-lg rounded-t-3xl sm:rounded-3xl shadow-2xl border-t-4 sm:border-2 border-dourado-500 overflow-hidden max-h-[90vh] flex flex-col">
+            <div class="azulejo-pattern px-5 py-4 text-white flex items-center justify-between shrink-0">
+                <div class="flex items-center gap-2.5">
+                    <div class="w-9 h-9 rounded-xl bg-dourado-500/20 border border-dourado-400/50 flex items-center justify-center text-dourado-300">
+                        <i class="fa-solid fa-cloud-arrow-up text-lg"></i>
+                    </div>
+                    <div>
+                        <h3 class="font-serif font-bold text-base sm:text-lg leading-tight">Alojar App no Netlify (Passo a Passo)</h3>
+                        <p class="text-[11px] text-azulejo-100">Colocar online grátis e instalar no telemóvel</p>
+                    </div>
+                </div>
+                <button onclick="closeHostingGuideModal()" class="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center text-white">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+
+            <div class="p-4 sm:p-5 overflow-y-auto space-y-4 text-xs sm:text-sm flex-1 text-slate-700">
+                <!-- Método A: Via GitHub (Recomendado para quem já tem GitHub) -->
+                <div class="bg-emerald-50 border-2 border-emerald-400/80 rounded-2xl p-3.5 space-y-2">
+                    <div class="font-extrabold text-emerald-950 flex items-center gap-1.5 text-xs sm:text-sm">
+                        <i class="fa-brands fa-github text-base"></i>
+                        <span>Opção A: Ligar o teu GitHub ao Netlify (Atualização Automática)</span>
+                    </div>
+                    <ol class="list-decimal list-inside space-y-1.5 text-xs text-slate-700 leading-relaxed">
+                        <li>Guarda o código desta aplicação num ficheiro chamado exatamente <strong><code>index.html</code></strong> e coloca-o no teu repositório do <strong>GitHub</strong>.</li>
+                        <li>Acede a <strong>app.netlify.com</strong> no computador e inicia sessão (podes entrar com a tua conta GitHub).</li>
+                        <li>No painel do Netlify, clica no botão <strong>"Add new site"</strong> &rarr; <strong>"Import an existing project"</strong>.</li>
+                        <li>Escolhe <strong>"GitHub"</strong>, autoriza o acesso e seleciona o teu repositório onde está o <code>index.html</code>.</li>
+                        <li>Deixa os campos <em>Build command</em> e <em>Publish directory</em> em branco e clica no botão <strong>"Deploy site"</strong>.</li>
+                        <li>Em 15 segundos o Netlify cria o teu link (ex: <code>rotadasalminhas.netlify.app</code>). Sempre que atualizares o <code>index.html</code> no GitHub, o site atualiza sozinho!</li>
+                    </ol>
+                </div>
+
+                <!-- Método B: Arrastar Pasta Diretamente (Sem GitHub) -->
+                <div class="bg-azulejo-50 border border-azulejo-200 rounded-2xl p-3.5 space-y-2">
+                    <div class="font-extrabold text-azulejo-900 flex items-center gap-1.5 text-xs sm:text-sm">
+                        <i class="fa-solid fa-folder-open text-azulejo-600"></i>
+                        <span>Opção B: Arrastar Pasta Diretamente (Netlify Drop)</span>
+                    </div>
+                    <ol class="list-decimal list-inside space-y-1.5 text-xs text-slate-700 leading-relaxed">
+                        <li>No teu computador, cria uma <strong>pasta nova</strong> (ex: <code>alminhas</code>) e coloca lá dentro o ficheiro <strong><code>index.html</code></strong>.</li>
+                        <li>Abre <strong>app.netlify.com/drop</strong> no navegador.</li>
+                        <li><strong>Arrasta a pasta inteira</strong> para dentro do círculo tracejado na página do Netlify.</li>
+                        <li>O link fica online de imediato!</li>
+                    </ol>
+                </div>
+
+                <!-- Instalar no Telemóvel -->
+                <div class="bg-amber-50 border border-amber-300 rounded-2xl p-3.5 space-y-1.5">
+                    <div class="font-bold text-amber-950 flex items-center gap-1.5 text-xs">
+                        <i class="fa-solid fa-mobile-screen-button text-amber-600"></i>
+                        <span>Como instalar no ecrã principal do Telemóvel:</span>
+                    </div>
+                    <p class="text-xs text-slate-700 leading-relaxed">
+                        Abre o link do Netlify no telemóvel &rarr; No <strong>Android (Chrome)</strong> toca nos 3 pontos no topo direito e escolhe <strong>"Instalar aplicação / Adicionar ao ecrã principal"</strong>. No <strong>iPhone (Safari)</strong> toca em Partilhar (em baixo) e escolhe <strong>"Adicionar ao Ecrã Principal"</strong>.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ================= TOAST DE FEEDBACK ================= -->
+    <div id="toastMessage" class="fixed bottom-44 left-1/2 -translate-x-1/2 z-50 bg-azulejo-900/95 text-white px-4 py-2.5 rounded-2xl shadow-xl border border-dourado-500 text-xs font-semibold flex items-center gap-2 hidden pointer-events-none">
+        <i class="fa-solid fa-circle-info text-dourado-400"></i>
+        <span id="toastText">Mensagem</span>
+    </div>
 
     <script>
-        // ====================================================================
-        // LINK PUBLICADO EM CSV DA ABA DISTRITO DO GOOGLE SHEETS (COM ANTI-CACHE)
-        // ====================================================================
-        const CSV_BASE_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSdIHTs9OSFutV7_VVJftFnusa-PFXrFRlklASBc1kmqbjbJDRgBccUJuiYwhLHPGEJW-fli0PY8Exw/pub?gid=1728241245&single=true&output=csv";
-
-        // Extrai o ID do ficheiro da Google Drive e gera o link direto de imagem mais estável
-        function extrairIdDrive(url) {
-            if (!url) return "";
-            let limpo = url.trim();
-            const matchIdParam = limpo.match(/[?&]id=([-\w]{25,})/);
-            if (matchIdParam) return matchIdParam[1];
-            const matchIdPath = limpo.match(/\/d\/([-\w]{25,})/);
-            if (matchIdPath) return matchIdPath[1];
-            const matchGeral = limpo.match(/[-\w]{25,}/);
-            return matchGeral ? matchGeral[0] : "";
-        }
-
-        function normalizarLinkFotoDrive(url) {
-            if (!url) return "";
-            const fileId = extrairIdDrive(url);
-            if (fileId) {
-                return `https://lh3.googleusercontent.com/d/${fileId}=w1000`;
+        /******************************************************************
+         * 1. BASE DE DADOS INICIAL DE MONUMENTOS (ALMINHAS, NICHOS, CRUZEIROS)
+         ******************************************************************/
+        const INITIAL_ALMINHAS = [
+            {
+                id: 'alm-smf-1',
+                name: 'Alminhas da Calçada do Castelo',
+                category: 'Alminhas',
+                region: 'Santa Maria da Feira',
+                era: 'Século XVIII',
+                lat: 40.9261,
+                lng: -8.5421,
+                description: 'Nicho devocional em cantaria de granito na encosta histórica de acesso ao Castelo da Feira.'
+            },
+            {
+                id: 'alm-smf-2',
+                name: 'Alminhas da Estrada Real de Sanfins',
+                category: 'Alminhas',
+                region: 'Santa Maria da Feira',
+                era: 'Século XIX',
+                lat: 40.9235,
+                lng: -8.5455,
+                description: 'Padrão das Almas do Purgatório com painel de azulejos tradicionais azul e branco.'
+            },
+            {
+                id: 'alm-vdc-1',
+                name: 'Cruzeiro e Alminhas de Arões',
+                category: 'Nicho-Cruz',
+                region: 'Vale de Cambra (Arões)',
+                era: 'Século XVIII',
+                lat: 40.7938,
+                lng: -8.3159,
+                description: 'Monumento serrano em granito lavrado nas encruzilhadas históricas da freguesia de Arões.'
+            },
+            {
+                id: 'alm-vdc-2',
+                name: 'Nicho da Levada da Serra da Freita',
+                category: 'Nicho',
+                region: 'Vale de Cambra',
+                era: 'Século XIX',
+                lat: 40.8285,
+                lng: -8.3620,
+                description: 'Pequeno oratório rústico de proteção aos caminheiros das terras altas de Entre Douro e Vouga.'
+            },
+            {
+                id: 'alm-vis-1',
+                name: 'Alminhas da Cava de Viriato',
+                category: 'Alminhas',
+                region: 'Viseu',
+                era: 'Século XVIII',
+                lat: 40.6652,
+                lng: -7.9102,
+                description: 'Nicho granítico beirão com inscrição pedindo um Padre-Nosso e Ave-Maria pelos fiéis defuntos.'
+            },
+            {
+                id: 'alm-1',
+                name: 'Alminhas da Ponte de São João',
+                category: 'Alminhas',
+                region: 'Braga',
+                era: 'Século XVIII',
+                lat: 41.5511,
+                lng: -8.4229,
+                description: 'Nicho barroco em granito com painel evocativo das Almas do Purgatório, junto à antiga via romana.'
+            },
+            {
+                id: 'alm-2',
+                name: 'Cruzeiro do Bom Jesus do Monte',
+                category: 'Cruzeiro',
+                region: 'Braga',
+                era: 'Século XIX',
+                lat: 41.5548,
+                lng: -8.3775,
+                description: 'Cruzeiro devocional de caminhantes situado na subida histórica para o santuário.'
+            },
+            {
+                id: 'alm-3',
+                name: 'Alminhas da Ponte Medieval',
+                category: 'Alminhas',
+                region: 'Ponte de Lima',
+                era: 'Século XVIII',
+                lat: 41.7685,
+                lng: -8.5852,
+                description: 'Célebre alminha minhota na travessia do Rio Lima, no Caminho Português de Santiago.'
+            },
+            {
+                id: 'alm-4',
+                name: 'Alminhas da Cruz da Picota',
+                category: 'Nicho-Cruz',
+                region: 'Viana do Castelo',
+                era: 'Século XIX (1842)',
+                lat: 41.6946,
+                lng: -8.8305,
+                description: 'Painel de azulejo policromado azul e amarelo, protegido por gradeamento em ferro forjado.'
+            },
+            {
+                id: 'alm-5',
+                name: 'Alminhas de São Roque da Lameira',
+                category: 'Alminhas',
+                region: 'Porto',
+                era: 'Século XIX',
+                lat: 41.1589,
+                lng: -8.5731,
+                description: 'Alminhas tradicionais de encruzilhada com lamparina de azeite e inscrição "Lembrai-vos de nós".'
+            },
+            {
+                id: 'alm-6',
+                name: 'Painel das Almas da Ribeira',
+                category: 'Alminhas',
+                region: 'Porto',
+                era: 'Século XVIII',
+                lat: 41.1408,
+                lng: -8.6132,
+                description: 'Devoção histórica às almas dos mareantes e barqueiros do Rio Douro.'
+            },
+            {
+                id: 'alm-7',
+                name: 'Nicho da Senhora da Oliveira',
+                category: 'Nicho',
+                region: 'Guimarães',
+                era: 'Século XVIII',
+                lat: 41.4429,
+                lng: -8.2918,
+                description: 'Oratório de parede talhado em cantaria granítica no centro histórico vimaranense.'
+            },
+            {
+                id: 'alm-8',
+                name: 'Cruzeiro do Senhor do Galo',
+                category: 'Cruzeiro',
+                region: 'Barcelos',
+                era: 'Século XVII',
+                lat: 41.5314,
+                lng: -8.6191,
+                description: 'Cruzeiro de pedra monumental de proteção aos romeiros e viajantes do Caminho Minhoto.'
+            },
+            {
+                id: 'alm-9',
+                name: 'Alminhas da Ria de São Gonçalinho',
+                category: 'Alminhas',
+                region: 'Aveiro',
+                era: 'Século XIX',
+                lat: 40.6422,
+                lng: -8.6554,
+                description: 'Nicho revestido a azulejo português no coração do bairro da Beira-Mar.'
+            },
+            {
+                id: 'alm-10',
+                name: 'Nicho da Estrada Real',
+                category: 'Nicho',
+                region: 'Coimbra',
+                era: 'Século XVIII',
+                lat: 40.2085,
+                lng: -8.4252,
+                description: 'Pequeno oratório em pedra calcária de Ançã pedindo um Padre-Nosso pelos fiéis defuntos.'
+            },
+            {
+                id: 'alm-11',
+                name: 'Alminhas da Serra d’Arga',
+                category: 'Alminhas',
+                region: 'Caminha',
+                era: 'Século XVIII',
+                lat: 41.8050,
+                lng: -8.7610,
+                description: 'Alminha serrana em bloco monolítico com relevo ingenuísta pintado a cal e ocre.'
             }
-            return url.trim();
+        ];
+
+        /******************************************************************
+         * 2. ESTADO GLOBAL E CACHE INDEXEDDB (PARA 7.053+ REGISTOS)
+         ******************************************************************/
+        let alminhas = [];
+        let filteredAlminhas = [];
+        let activeCategory = 'ALL';
+        let renderScopeMeters = 'ALL'; // 'ALL' (Cluster) ou raio em metros (5000, 15000, 50000)
+
+        let userPos = { lat: 40.9254, lng: -8.5428 }; // Santa Maria da Feira
+        let alertRadius = 100; // metros
+        let soundEnabled = true;
+
+        let map = null;
+        let currentTileLayer = null;
+        let googleLayers = {};
+        let clusterGroup = null;
+        let highlightedNearestMarker = null;
+        let userMarker = null;
+        let userRadiusCircle = null;
+        let lineToNearest = null;
+        let nearestAlminha = null;
+        let alertedIds = new Set();
+
+        let mapPickMode = false;
+        let autoWalkInterval = null;
+        let watchId = null;
+        let audioCtx = null;
+
+        // Estado de importação/mapeamento Google Sheets
+        let pendingParsedRows = [];
+        let pendingHeaders = [];
+        let currentListLimit = 60;
+
+        // IndexedDB para guardar 7.053+ monumentos sem estourar o limite de 5MB do localStorage
+        const DB_NAME = 'RotaAlminhasDB';
+        const STORE_NAME = 'monumentos_store';
+
+        function openIndexedDB() {
+            return new Promise((resolve, reject) => {
+                const req = indexedDB.open(DB_NAME, 1);
+                req.onupgradeneeded = (e) => {
+                    const db = e.target.result;
+                    if (!db.objectStoreNames.contains(STORE_NAME)) {
+                        db.createObjectStore(STORE_NAME);
+                    }
+                };
+                req.onsuccess = () => resolve(req.result);
+                req.onerror = () => reject(req.error);
+            });
         }
 
-        // Inicialização do Mapa centrado em Portugal
-        const map = L.map('map', {
-            zoomControl: true
-        }).setView([41.15, -8.35], 8);
+        async function saveDatasetToCache(dataArray) {
+            try {
+                const db = await openIndexedDB();
+                const tx = db.transaction(STORE_NAME, 'readwrite');
+                tx.objectStore(STORE_NAME).put(dataArray, 'all_monuments');
+            } catch (e) {
+                console.warn('Fallback para localStorage:', e);
+            }
+            updateBadgesAndCounts();
+        }
 
-        // Camadas de Fundo - "Mapa de Ruas (Google)" definido por defeito
-        const googleStreets = L.tileLayer('https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}', {
-            maxZoom: 20,
-            attribution: '&copy; Google Maps'
-        }).addTo(map);
+        async function loadDatasetFromCache() {
+            try {
+                const db = await openIndexedDB();
+                return new Promise((resolve) => {
+                    const tx = db.transaction(STORE_NAME, 'readonly');
+                    const req = tx.objectStore(STORE_NAME).get('all_monuments');
+                    req.onsuccess = () => resolve(req.result || null);
+                    req.onerror = () => resolve(null);
+                });
+            } catch (e) {
+                return null;
+            }
+        }
 
-        const googleHybrid = L.tileLayer('https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}', {
-            maxZoom: 20,
-            attribution: '&copy; Google Maps Satellite'
-        });
-
-        const googleTerrain = L.tileLayer('https://mt1.google.com/vt/lyrs=p&x={x}&y={y}&z={z}', {
-            maxZoom: 20,
-            attribution: '&copy; Google Maps Terrain'
-        });
-
-        const satLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
-            maxZoom: 19,
-            attribution: 'Tiles &copy; Esri'
-        });
-
-        const baseLayers = {
-            "Mapa de Ruas (Google)": googleStreets,
-            "Satélite com Nomes (Google Híbrido)": googleHybrid,
-            "Mapa de Relevo (Google Terreno)": googleTerrain,
-            "Satélite Puro (ESRI)": satLayer
+        /******************************************************************
+         * 3. INICIALIZAÇÃO
+         ******************************************************************/
+        window.onload = async function () {
+            initMap();
+            await initializeData();
+            tryInitialGeolocation();
         };
-        L.control.layers(baseLayers, null, { position: 'topleft' }).addTo(map);
 
-        // Agrupador de Clusters de Marcadores
-        const markersCluster = L.markerClusterGroup({
-            maxClusterRadius: 45,
-            spiderfyOnMaxZoom: true,
-            showCoverageOnHover: false
-        });
-        map.addLayer(markersCluster);
+        async function initializeData() {
+            const savedUrl = localStorage.getItem('rota_sheets_url');
+            const autoSync = localStorage.getItem('rota_sheets_autosync') !== 'false';
 
-        // Ícones personalizados por Tipologia
-        function criarIcone(tipologia) {
-            let cor = "#7f8c8d"; // Cinzento por defeito
-            let tipoNorm = (tipologia || "").trim().toLowerCase();
+            if (savedUrl) {
+                document.getElementById('sheetsUrlInput').value = savedUrl;
+            }
+            document.getElementById('autoSyncToggle').checked = autoSync;
 
-            if (tipoNorm.includes("alminha")) cor = "#2980b9";      // Azul
-            else if (tipoNorm.includes("nicho-cruz")) cor = "#8e44ad"; // Roxo
-            else if (tipoNorm.includes("nicho")) cor = "#27ae60";      // Verde
-            else if (tipoNorm.includes("cruz")) cor = "#c0392b";       // Vermelho
-
-            return L.divIcon({
-                className: 'custom-pin',
-                html: `<div style="background-color: ${cor}; width: 14px; height: 14px; border-radius: 50%; border: 2px solid white; box-shadow: 0 0 4px rgba(0,0,0,0.6);"></div>`,
-                iconSize: [18, 18],
-                iconAnchor: [9, 9]
-            });
-        }
-
-        let todosDadosGlobais = [];
-
-        function iniciarCarregamentoDados() {
-            // Força o Google Sheets e o navegador a entregarem a versão mais recente sem cache
-            const urlSemCache = CSV_BASE_URL + "&t=" + new Date().getTime();
-
-            Papa.parse(urlSemCache, {
-                download: true,
-                header: false,
-                skipEmptyLines: true,
-                complete: function(resDistrito) {
-                    processarDadosCompletos(resDistrito.data);
-                },
-                error: function(err) {
-                    document.getElementById('loader').innerHTML = `<h3 style="color:#c0392b;">Erro ao carregar aba DISTRITO</h3><p>Verifique se publicou na Web como CSV.</p>`;
+            // 1. Carregar primeiro da cache IndexedDB para arranque instantâneo
+            const cached = await loadDatasetFromCache();
+            if (cached && Array.isArray(cached) && cached.length > 0) {
+                alminhas = cached;
+                // Passar automaticamente o corretor Anti-Mar nos registos em cache caso algum esteja no oceano
+                let autoRepaired = 0;
+                for (let i = 0; i < alminhas.length; i++) {
+                    const fix = sanitizePortugueseCoords(alminhas[i].lat, alminhas[i].lng, true);
+                    if (fix && fix.wasFixed) {
+                        alminhas[i].lat = fix.lat;
+                        alminhas[i].lng = fix.lng;
+                        autoRepaired++;
+                    }
                 }
-            });
-        }
-
-        function processarDadosCompletos(linhasCsv) {
-            todosDadosGlobais = [];
-            const concelhosSet = new Set();
-
-            // Descobre dinamicamente em que coluna está Foto e Ficha pelo cabeçalho (Linha 0),
-            // garantindo por defeito Coluna U (20) e Coluna V (21)
-            let idxFoto = 20;
-            let idxFicha = 21;
-            if (linhasCsv.length > 0) {
-                const cabecalho = linhasCsv[0];
-                for (let c = 0; c < cabecalho.length; c++) {
-                    const nomeCol = String(cabecalho[c] || "").trim().toLowerCase();
-                    if (nomeCol.includes("foto") || nomeCol.includes("imagem")) idxFoto = c;
-                    if (nomeCol.includes("ficha") || nomeCol.includes("pdf") || nomeCol.includes("doc")) idxFicha = c;
+                if (autoRepaired > 0) {
+                    saveDatasetToCache(alminhas);
                 }
+                updateSyncStatusUI('Cache Local Ativa', `${alminhas.length.toLocaleString('pt-PT')} monumentos prontos`);
+            } else {
+                alminhas = [...INITIAL_ALMINHAS];
             }
 
-            for (let i = 0; i < linhasCsv.length; i++) {
-                const r = linhasCsv[i];
-                if (!r || r.length < 9) continue;
+            applyCategoryAndRebuildClusters();
+            updateAllDistancesAndUI(false);
 
-                // Mapeamento das colunas do Google Sheets (A até V)
-                const id           = String(r[0] || "").trim(); // A: ID
-                const lugar        = String(r[1] || "").trim(); // B: Lugar
-                const freguesia    = String(r[2] || "").trim(); // C: Freguesia
-                const concelho     = String(r[3] || "").trim(); // D: Concelho
-                const distrito     = String(r[4] || "").trim(); // E: Distrito
-                const painel       = String(r[5] || "").trim(); // F: Painel
-                const cronologia   = String(r[6] || "").trim(); // G: Cronologia
-                const latStr       = String(r[7] || "").trim().replace(',', '.'); // H: Latitude
-                const lonStr       = String(r[8] || "").trim().replace(',', '.'); // I: Longitude
-                const descricao    = String(r[9] || "").trim(); // J: Descrição
-                const autor        = String(r[10] || "").trim(); // K: Autor
-                const esmolas      = String(r[11] || "").trim(); // L: Esmolas
-                const protecao     = String(r[12] || "").trim(); // M: Proteção
-                const altura       = String(r[13] || "").trim(); // N: Altura
-                const largura      = String(r[14] || "").trim(); // O: Largura
-                const profundidade = String(r[15] || "").trim(); // P: Profundidade
-                const tipologia    = String(r[16] || "").trim(); // Q: Tipologia
-                const dataAtualiz  = String(r[17] || "").trim(); // R: Data
-                const referencias  = String(r[18] || "").trim(); // S: Referências
-                const obs          = String(r[19] || "").trim(); // T: Obs
-                
-                let foto  = String(r[idxFoto] || "").trim();  // U: Foto (índice 20)
-                let ficha = String(r[idxFicha] || "").trim(); // V: Ficha Técnica (índice 21)
+            // 2. Se tiver Google Sheets configurado e Auto-Sync ativo, sincronizar em background
+            if (savedUrl && autoSync) {
+                fetchAndSyncGoogleSheet(savedUrl, true);
+            }
+        }
 
-                const lat = parseFloat(latStr);
-                const lon = parseFloat(lonStr);
+        /******************************************************************
+         * 4. MAPA GOOGLE MAPS + AGRUPAMENTO MARKERCLUSTER (7.053+ PONTOS)
+         ******************************************************************/
+        function initMap() {
+            map = L.map('map', {
+                zoomControl: false,
+                attributionControl: true,
+                preferCanvas: true
+            }).setView([userPos.lat, userPos.lng], 15);
 
-                if (!isNaN(lat) && !isNaN(lon)) {
-                    if (concelho) concelhosSet.add(concelho);
+            // Camadas Oficiais do Google Maps
+            googleLayers = {
+                m: L.tileLayer('https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}', {
+                    maxZoom: 21,
+                    attribution: '&copy; Google Maps'
+                }),
+                y: L.tileLayer('https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}', {
+                    maxZoom: 21,
+                    attribution: '&copy; Google Maps (Híbrido)'
+                }),
+                s: L.tileLayer('https://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}', {
+                    maxZoom: 21,
+                    attribution: '&copy; Google Maps (Satélite)'
+                }),
+                p: L.tileLayer('https://mt1.google.com/vt/lyrs=p&x={x}&y={y}&z={z}', {
+                    maxZoom: 20,
+                    attribution: '&copy; Google Maps (Terreno)'
+                })
+            };
 
-                    todosDadosGlobais.push({
-                        id, lugar, freguesia, concelho, distrito, painel, cronologia,
-                        lat, lon, descricao, autor, esmolas, protecao,
-                        altura, largura, profundidade, tipologia, dataAtualiz,
-                        referencias, obs,
-                        foto,
-                        ficha
+            currentTileLayer = googleLayers.m;
+            currentTileLayer.addTo(map);
+
+            // Inicializar MarkerClusterGroup otimizado para milhares de pontos
+            clusterGroup = L.markerClusterGroup({
+                chunkedLoading: true,
+                chunkInterval: 100,
+                chunkDelay: 25,
+                maxClusterRadius: 52,
+                spiderfyOnMaxZoom: true,
+                showCoverageOnHover: false,
+                disableClusteringAtZoom: 18,
+                iconCreateFunction: function (cluster) {
+                    const count = cluster.getChildCount();
+                    const isLarge = count >= 100;
+                    const size = count < 20 ? 36 : (count < 150 ? 42 : 48);
+                    return L.divIcon({
+                        html: `<div>${count.toLocaleString('pt-PT')}</div>`,
+                        className: `custom-cluster-icon ${isLarge ? 'custom-cluster-large' : ''}`,
+                        iconSize: L.point(size, size)
                     });
                 }
-            }
+            });
+            map.addLayer(clusterGroup);
 
-            // Preenche o seletor de concelhos alfabeticamente
-            const selectConcelho = document.getElementById('select-concelho');
-            Array.from(concelhosSet).sort((a, b) => a.localeCompare(b, 'pt')).forEach(c => {
-                const opt = document.createElement('option');
-                opt.value = c;
-                opt.textContent = c;
-                selectConcelho.appendChild(opt);
+            // Círculo do raio de alerta em redor do utilizador
+            userRadiusCircle = L.circle([userPos.lat, userPos.lng], {
+                radius: alertRadius,
+                color: '#2563eb',
+                weight: 2,
+                dashArray: '6, 6',
+                fillColor: '#3b82f6',
+                fillOpacity: 0.14
+            }).addTo(map);
+
+            // Linha tracejada até ao monumento mais próximo
+            lineToNearest = L.polyline([[userPos.lat, userPos.lng], [userPos.lat, userPos.lng]], {
+                color: '#d4af37',
+                weight: 3.5,
+                dashArray: '8, 8',
+                opacity: 0.9
+            }).addTo(map);
+
+            // Marcador do Utilizador (arrastável)
+            const userIcon = L.divIcon({
+                className: 'custom-user-icon',
+                html: `
+                    <div class="w-9 h-9 rounded-full bg-azulejo-600 border-2 border-white shadow-xl flex items-center justify-center text-white user-dot cursor-grab">
+                        <i class="fa-solid fa-person-walking text-sm"></i>
+                    </div>
+                `,
+                iconSize: [36, 36],
+                iconAnchor: [18, 18]
             });
 
-            // Permite abrir diretamente um concelho via URL (ex: index.html?concelho=Amares)
-            const urlParams = new URLSearchParams(window.location.search);
-            const concelhoUrl = urlParams.get('concelho');
-            if (concelhoUrl) {
-                for (let i = 0; i < selectConcelho.options.length; i++) {
-                    if (selectConcelho.options[i].value.toLowerCase() === concelhoUrl.toLowerCase()) {
-                        selectConcelho.selectedIndex = i;
+            userMarker = L.marker([userPos.lat, userPos.lng], {
+                icon: userIcon,
+                draggable: true,
+                zIndexOffset: 2000
+            }).addTo(map);
+
+            userMarker.bindTooltip("Você está aqui (Arraste-me para testar!)", {
+                direction: 'top',
+                offset: [0, -16]
+            });
+
+            userMarker.on('drag', function (e) {
+                const pos = e.target.getLatLng();
+                userPos.lat = pos.lat;
+                userPos.lng = pos.lng;
+                updateAllDistancesAndUI(false);
+            });
+
+            userMarker.on('dragend', function () {
+                if (renderScopeMeters !== 'ALL') {
+                    rebuildClusterMarkers();
+                }
+                showToast("Posição atualizada manualmente");
+            });
+
+            map.on('click', function (e) {
+                if (mapPickMode) {
+                    const { lat, lng } = e.latlng;
+                    cancelMapPickMode();
+                    openAddModalWithCoords(lat, lng);
+                }
+            });
+        }
+
+        function setGoogleLayer(type) {
+            if (!map || !googleLayers[type]) return;
+            if (currentTileLayer) map.removeLayer(currentTileLayer);
+            currentTileLayer = googleLayers[type];
+            currentTileLayer.addTo(map);
+
+            ['m', 'y', 's', 'p'].forEach(key => {
+                const btn = document.getElementById(`layerBtn-${key}`);
+                if (!btn) return;
+                btn.className = key === type
+                    ? "px-2.5 py-1.5 rounded-xl text-[11px] font-bold transition flex items-center gap-1 bg-azulejo-800 text-white shadow-sm"
+                    : "px-2.5 py-1.5 rounded-xl text-[11px] font-bold transition flex items-center gap-1 text-azulejo-900 hover:bg-azulejo-50";
+            });
+        }
+
+        function getGoogleMapsNavUrl(lat, lng) {
+            return `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}&travelmode=walking`;
+        }
+
+        // Ícones distintos por categoria (Alminhas, Nicho, Cruzeiro, Nicho-Cruz)
+        function createMonumentIcon(category, isInsideAlertRadius, isNearest) {
+            const cat = normalizeCategory(category);
+            const extraPulse = isInsideAlertRadius ? 'alminha-alert-marker' : '';
+
+            let bgClass = 'border-white bg-azulejo-900 text-dourado-300';
+            let iconHtml = `<i class="fa-solid fa-fire-flame-simple text-xs"></i>`;
+
+            if (cat === 'Nicho') {
+                bgClass = 'border-white bg-sky-800 text-sky-200';
+                iconHtml = `<i class="fa-solid fa-archway text-xs"></i>`;
+            } else if (cat === 'Cruzeiro') {
+                bgClass = 'border-white bg-emerald-900 text-emerald-300';
+                iconHtml = `<i class="fa-solid fa-cross text-xs"></i>`;
+            } else if (cat === 'Nicho-Cruz') {
+                bgClass = 'border-white bg-purple-900 text-purple-200';
+                iconHtml = `<i class="fa-solid fa-church text-xs"></i>`;
+            }
+
+            if (isInsideAlertRadius) {
+                bgClass = 'border-emerald-300 bg-gradient-to-b from-dourado-400 to-dourado-600 text-azulejo-900';
+            } else if (isNearest) {
+                bgClass = 'border-dourado-400 bg-azulejo-800 text-dourado-400';
+            }
+
+            return L.divIcon({
+                className: 'custom-alminha-marker',
+                html: `
+                    <div class="relative flex flex-col items-center">
+                        <div class="w-9 h-9 rounded-t-full rounded-b-xl ${bgClass} border-2 shadow-xl flex items-center justify-center ${extraPulse}">
+                            ${iconHtml}
+                        </div>
+                        <div class="w-2 h-2 rotate-45 bg-azulejo-900 -mt-1 border-r border-b border-dourado-400"></div>
+                    </div>
+                `,
+                iconSize: [36, 42],
+                iconAnchor: [18, 38],
+                popupAnchor: [0, -34]
+            });
+        }
+
+        // Reconstrói os marcadores no MarkerCluster com suporte para 7.053+ pontos sem bloquear o telemóvel
+        function rebuildClusterMarkers() {
+            if (!clusterGroup) return;
+            clusterGroup.clearLayers();
+
+            const maxScope = renderScopeMeters === 'ALL' ? Infinity : parseInt(renderScopeMeters, 10);
+            const markersToAdd = [];
+
+            for (let i = 0; i < filteredAlminhas.length; i++) {
+                const alm = filteredAlminhas[i];
+                if (maxScope !== Infinity) {
+                    const d = calculateHaversineMeters(userPos.lat, userPos.lng, alm.lat, alm.lng);
+                    if (d > maxScope) continue;
+                }
+
+                const marker = L.marker([alm.lat, alm.lng], {
+                    icon: createMonumentIcon(alm.category, false, false)
+                });
+
+                // Lazy Popup: só gera o HTML quando o utilizador clica no marcador (poupa muita RAM em 7053 pontos)
+                marker.on('click', () => {
+                    const distNow = calculateHaversineMeters(userPos.lat, userPos.lng, alm.lat, alm.lng);
+                    marker.bindPopup(buildPopupHTML(alm, distNow)).openPopup();
+                });
+
+                markersToAdd.push(marker);
+            }
+
+            clusterGroup.addLayers(markersToAdd);
+        }
+
+        function buildPopupHTML(alm, distMeters) {
+            const gmapsUrl = getGoogleMapsNavUrl(alm.lat, alm.lng);
+            const cat = normalizeCategory(alm.category);
+            return `
+                <div class="min-w-[230px] max-w-[265px]">
+                    <div class="flex items-center justify-between gap-2 mb-1">
+                        <span class="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-azulejo-50 text-azulejo-800 border border-azulejo-200">${cat} • ${alm.region || 'Portugal'}</span>
+                        <span class="text-xs font-extrabold text-dourado-600 shrink-0">${formatDistance(distMeters)}</span>
+                    </div>
+                    <h4 class="font-serif font-bold text-sm text-azulejo-900 leading-snug">${alm.name}</h4>
+                    <p class="text-[11px] text-slate-500 font-medium mb-1.5">${alm.era || 'Património Devocional'}</p>
+                    <p class="text-xs text-slate-700 leading-relaxed mb-2.5">${alm.description || 'Monumento inventariado.'}</p>
+                    <div class="grid grid-cols-2 gap-1.5">
+                        <button onclick="simulateWalkToSpecific('${alm.id}')" class="py-1.5 px-2 rounded-lg bg-azulejo-800 hover:bg-azulejo-700 text-white font-semibold text-[11px] flex items-center justify-center gap-1 transition">
+                            <i class="fa-solid fa-person-walking text-dourado-400"></i> Simular Ida
+                        </button>
+                        <a href="${gmapsUrl}" target="_blank" rel="noopener noreferrer" class="py-1.5 px-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-[11px] flex items-center justify-center gap-1 transition">
+                            <i class="fa-solid fa-diamond-turn-right"></i> Google Maps
+                        </a>
+                    </div>
+                </div>
+            `;
+        }
+
+        /******************************************************************
+         * 5. FILTROS DE TIPOLOGIA E ESCOPO DE RENDERIZAÇÃO
+         ******************************************************************/
+        function normalizeCategory(rawCat) {
+            if (!rawCat) return 'Alminhas';
+            const s = String(rawCat).toLowerCase().trim();
+            if (s.includes('nicho') && s.includes('cruz')) return 'Nicho-Cruz';
+            if (s.includes('cruzeiro') || s.includes('cruz')) return 'Cruzeiro';
+            if (s.includes('nicho') || s.includes('oratorio') || s.includes('oratório') || s.includes('passo')) return 'Nicho';
+            return 'Alminhas';
+        }
+
+        function setCategoryFilter(cat) {
+            activeCategory = cat;
+            const categories = ['ALL', 'Alminhas', 'Nicho', 'Cruzeiro', 'Nicho-Cruz'];
+            categories.forEach(c => {
+                const btn = document.getElementById(`catBtn-${c}`);
+                if (!btn) return;
+                if (c === cat) {
+                    btn.className = "px-2.5 py-1 rounded-full text-[11px] font-bold bg-dourado-500 text-azulejo-900 shadow-sm flex items-center gap-1 shrink-0 transition";
+                } else {
+                    btn.className = "px-2.5 py-1 rounded-full text-[11px] font-semibold bg-azulejo-900/80 text-azulejo-100 border border-white/15 hover:bg-azulejo-800 flex items-center gap-1 shrink-0 transition";
+                }
+            });
+
+            applyCategoryAndRebuildClusters();
+            updateAllDistancesAndUI(false);
+        }
+
+        function changeRenderScope(val) {
+            renderScopeMeters = val;
+            rebuildClusterMarkers();
+            const label = val === 'ALL' ? 'Todos os monumentos (Clusters)' : `Raio de ${parseInt(val, 10) / 1000} km`;
+            showToast(`Mapa: a mostrar ${label}`);
+        }
+
+        function applyCategoryAndRebuildClusters() {
+            if (activeCategory === 'ALL') {
+                filteredAlminhas = alminhas;
+            } else {
+                filteredAlminhas = alminhas.filter(a => normalizeCategory(a.category) === activeCategory);
+            }
+            updateBadgesAndCounts();
+            rebuildClusterMarkers();
+        }
+
+        function updateBadgesAndCounts() {
+            const total = alminhas.length;
+            const totalFormatted = total.toLocaleString('pt-PT');
+            const badge = document.getElementById('totalBadge');
+            if (badge) badge.textContent = totalFormatted;
+
+            const counts = {
+                ALL: total,
+                Alminhas: 0,
+                Nicho: 0,
+                Cruzeiro: 0,
+                'Nicho-Cruz': 0
+            };
+
+            for (let i = 0; i < alminhas.length; i++) {
+                const c = normalizeCategory(alminhas[i].category);
+                if (counts[c] !== undefined) counts[c]++;
+            }
+
+            Object.keys(counts).forEach(k => {
+                const el = document.getElementById(`count-${k}`);
+                if (el) el.textContent = `(${counts[k].toLocaleString('pt-PT')})`;
+            });
+        }
+
+        /******************************************************************
+         * 6. MOTOR DE PROXIMIDADE OTIMIZADO (PARA 7.053+ MONUMENTOS)
+         ******************************************************************/
+        function updateAllDistancesAndUI(panMapToUser = false) {
+            if (!userMarker) return;
+
+            userMarker.setLatLng([userPos.lat, userPos.lng]);
+            userRadiusCircle.setLatLng([userPos.lat, userPos.lng]);
+            userRadiusCircle.setRadius(alertRadius);
+
+            if (panMapToUser) {
+                map.panTo([userPos.lat, userPos.lng], { animate: true, duration: 0.35 });
+            }
+
+            const pool = filteredAlminhas.length > 0 ? filteredAlminhas : alminhas;
+            let minDistance = Infinity;
+            let closest = null;
+
+            for (let i = 0; i < pool.length; i++) {
+                const alm = pool[i];
+                const d = calculateHaversineMeters(userPos.lat, userPos.lng, alm.lat, alm.lng);
+                alm.currentDistance = d;
+                if (d < minDistance) {
+                    minDistance = d;
+                    closest = alm;
+                }
+            }
+
+            nearestAlminha = closest;
+            if (!nearestAlminha) return;
+
+            const bearing = calculateBearing(userPos.lat, userPos.lng, nearestAlminha.lat, nearestAlminha.lng);
+            const cardinal = bearingToCardinal(bearing);
+
+            lineToNearest.setLatLngs([
+                [userPos.lat, userPos.lng],
+                [nearestAlminha.lat, nearestAlminha.lng]
+            ]);
+
+            const isClose = nearestAlminha.currentDistance <= alertRadius;
+            if (!highlightedNearestMarker) {
+                highlightedNearestMarker = L.marker([nearestAlminha.lat, nearestAlminha.lng], {
+                    icon: createMonumentIcon(nearestAlminha.category, isClose, true),
+                    zIndexOffset: 1500
+                }).addTo(map);
+                highlightedNearestMarker.on('click', () => {
+                    if (nearestAlminha) {
+                        highlightedNearestMarker.bindPopup(buildPopupHTML(nearestAlminha, nearestAlminha.currentDistance)).openPopup();
+                    }
+                });
+            } else {
+                highlightedNearestMarker.setLatLng([nearestAlminha.lat, nearestAlminha.lng]);
+                highlightedNearestMarker.setIcon(createMonumentIcon(nearestAlminha.category, isClose, true));
+            }
+
+            document.getElementById('nearestDistanceValue').textContent = formatDistance(nearestAlminha.currentDistance);
+            document.getElementById('nearestCardinal').textContent = cardinal;
+            document.getElementById('nearestCategoryBadge').textContent = normalizeCategory(nearestAlminha.category);
+            document.getElementById('nearestRegion').textContent = nearestAlminha.region || 'Portugal';
+            document.getElementById('nearestName').textContent = nearestAlminha.name;
+            document.getElementById('nearestDescription').textContent = nearestAlminha.description || '';
+
+            const nearestNavBtn = document.getElementById('nearestGmapsLink');
+            if (nearestNavBtn) {
+                nearestNavBtn.href = getGoogleMapsNavUrl(nearestAlminha.lat, nearestAlminha.lng);
+            }
+
+            const arrowEl = document.getElementById('directionArrow');
+            arrowEl.style.transform = `rotate(${bearing - 45}deg)`;
+
+            const badgeBox = document.getElementById('nearestBadgeBox');
+            if (isClose) {
+                badgeBox.className = "w-16 h-16 rounded-2xl bg-gradient-to-br from-dourado-400 to-dourado-600 text-azulejo-900 flex flex-col items-center justify-center shrink-0 border-2 border-azulejo-900 shadow-lg relative";
+                arrowEl.className = "fa-solid fa-bell text-azulejo-900 text-base mb-0.5 animate-bounce";
+            } else {
+                badgeBox.className = "w-16 h-16 rounded-2xl bg-azulejo-900 text-white flex flex-col items-center justify-center shrink-0 border-2 border-dourado-400 shadow-md relative";
+                arrowEl.className = "fa-solid fa-location-arrow text-dourado-400 text-base mb-0.5 transition-transform duration-300";
+            }
+
+            const maxRef = Math.max(alertRadius * 4, 500);
+            const pct = Math.max(6, Math.min(100, 100 - (nearestAlminha.currentDistance / maxRef) * 100));
+            document.getElementById('proximityProgressBar').style.width = `${pct}%`;
+
+            if (isClose && !alertedIds.has(nearestAlminha.id)) {
+                alertedIds.add(nearestAlminha.id);
+                triggerProximityAlert(nearestAlminha);
+            } else if (!isClose && alertedIds.has(nearestAlminha.id) && nearestAlminha.currentDistance > alertRadius * 1.25) {
+                alertedIds.delete(nearestAlminha.id);
+            }
+        }
+
+        function calculateHaversineMeters(lat1, lon1, lat2, lon2) {
+            const R = 6371000;
+            const toRad = deg => (deg * Math.PI) / 180;
+            const dLat = toRad(lat2 - lat1);
+            const dLon = toRad(lon2 - lon1);
+            const a =
+                Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+                Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) *
+                Math.sin(dLon / 2) * Math.sin(dLon / 2);
+            return R * (2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a)));
+        }
+
+        function calculateBearing(lat1, lng1, lat2, lng2) {
+            const toRad = deg => (deg * Math.PI) / 180;
+            const toDeg = rad => (rad * 180) / Math.PI;
+            const dLng = toRad(lng2 - lng1);
+            const y = Math.sin(dLng) * Math.cos(toRad(lat2));
+            const x = Math.cos(toRad(lat1)) * Math.sin(toRad(lat2)) -
+                      Math.sin(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.cos(dLng);
+            return (toDeg(Math.atan2(y, x)) + 360) % 360;
+        }
+
+        function bearingToCardinal(brng) {
+            const dirs = ['Norte', 'Nordeste', 'Este', 'Sudeste', 'Sul', 'Sudoeste', 'Oeste', 'Noroeste'];
+            return dirs[Math.round(brng / 45) % 8];
+        }
+
+        function formatDistance(meters) {
+            if (meters < 1000) return `${Math.round(meters)} m`;
+            return `${(meters / 1000).toFixed(2)} km`;
+        }
+
+        /******************************************************************
+         * 7. SINCRONIZAÇÃO EM TEMPO REAL COM GOOGLE SHEETS (7.053+ MONUMENTOS)
+         ******************************************************************/
+        function openSheetsModal() {
+            document.getElementById('sheetsModal').classList.remove('hidden');
+        }
+
+        function closeSheetsModal() {
+            document.getElementById('sheetsModal').classList.add('hidden');
+        }
+
+        function toggleAutoSyncSetting(checked) {
+            localStorage.setItem('rota_sheets_autosync', checked ? 'true' : 'false');
+            showToast(checked ? "Sincronização automática ativada" : "Sincronização automática desativada");
+        }
+
+        function updateSyncStatusUI(title, subtitle, isSyncing = false) {
+            const tEl = document.getElementById('syncStatusTitle');
+            const sEl = document.getElementById('syncStatusSubtitle');
+            const topIcon = document.getElementById('sheetsSyncIcon');
+            if (tEl) tEl.textContent = title;
+            if (sEl) sEl.textContent = subtitle;
+            if (topIcon) {
+                topIcon.className = isSyncing
+                    ? "fa-solid fa-arrows-rotate animate-spin text-xs"
+                    : "fa-solid fa-table text-xs";
+            }
+        }
+
+        function convertGoogleSheetUrlToCsv(rawUrl) {
+            const url = rawUrl.trim();
+            if (url.includes('output=csv') || url.includes('out:csv') || url.endsWith('.csv')) {
+                return url;
+            }
+            const idMatch = url.match(/\/spreadsheets\/d\/([a-zA-Z0-9-_]+)/);
+            const gidMatch = url.match(/[#&?]gid=([0-9]+)/);
+            if (idMatch && idMatch[1]) {
+                const sheetId = idMatch[1];
+                const gid = gidMatch && gidMatch[1] ? gidMatch[1] : '0';
+                return `https://docs.google.com/spreadsheets/d/${sheetId}/export?format=csv&gid=${gid}`;
+            }
+            return url;
+        }
+
+        function connectGoogleSheetFromInput() {
+            const rawUrl = document.getElementById('sheetsUrlInput').value.trim();
+            if (!rawUrl) {
+                showToast("Cole primeiro o link da sua folha do Google Sheets.");
+                return;
+            }
+            localStorage.setItem('rota_sheets_url', rawUrl);
+            fetchAndSyncGoogleSheet(rawUrl, false);
+        }
+
+        function syncFromSavedSheetUrl() {
+            const rawUrl = document.getElementById('sheetsUrlInput').value.trim() || localStorage.getItem('rota_sheets_url');
+            if (!rawUrl) {
+                showToast("Introduza o link do Google Sheets abaixo para sincronizar.");
+                return;
+            }
+            fetchAndSyncGoogleSheet(rawUrl, false);
+        }
+
+        async function fetchAndSyncGoogleSheet(rawUrl, silentMode = false) {
+            const csvUrl = convertGoogleSheetUrlToCsv(rawUrl);
+            updateSyncStatusUI('A sincronizar com Google Sheets...', 'A descarregar registos atualizados...', true);
+            if (!silentMode) showToast("A ligar ao Google Sheets...");
+
+            try {
+                const response = await fetch(csvUrl, { cache: 'no-store' });
+                if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                const csvText = await response.text();
+                parseCsvTextAndLoadMonuments(csvText, silentMode);
+            } catch (err) {
+                console.warn("Erro ao aceder diretamente ao URL do Sheets:", err);
+                updateSyncStatusUI('Partilha Restrita ou Offline', 'Verifique se a folha está "Publicada na Web" ou pública', false);
+                if (!silentMode) {
+                    showToast("Não foi possível ler o link diretamente. Verifique se a folha está 'Publicada na Web' como CSV.");
+                }
+            }
+        }
+
+        // Faz o parsing ultra-rápido do CSV (mesmo com +7.053 linhas) e fixa Coluna H (LAT, índice 7) e Coluna I (LONG, índice 8)
+        function parseCsvTextAndLoadMonuments(csvText, silentMode = false) {
+            Papa.parse(csvText, {
+                header: false,
+                skipEmptyLines: true,
+                complete: function (results) {
+                    const rawMatrix = results.data || [];
+                    if (rawMatrix.length < 2) {
+                        updateSyncStatusUI('Folha Vazia ou Formato Inválido', 'Verifique se a folha contém cabeçalhos e linhas', false);
+                        if (!silentMode) showToast("A folha parece estar vazia.");
+                        return;
+                    }
+
+                    // Linha 0 como cabeçalhos; criar chaves únicas com a letra da coluna do Excel/Sheets (A, B, C... H, I...)
+                    const getExcelColLetter = (colIdx) => {
+                        let letter = '';
+                        let temp = colIdx;
+                        while (temp >= 0) {
+                            letter = String.fromCharCode((temp % 26) + 65) + letter;
+                            temp = Math.floor(temp / 26) - 1;
+                        }
+                        return letter;
+                    };
+
+                    const headerRow = rawMatrix[0].map((h, idx) => {
+                        const clean = String(h || '').trim();
+                        const colLetter = getExcelColLetter(idx);
+                        return clean ? `${clean}` : `Col_${colLetter}`;
+                    });
+
+                    // Converter as restantes linhas em objetos + guardar também o array bruto `__rawCols` para acesso direto à Coluna H (índice 7) e Coluna I (índice 8)
+                    const rows = [];
+                    for (let r = 1; r < rawMatrix.length; r++) {
+                        const arr = rawMatrix[r];
+                        if (!arr || arr.length === 0) continue;
+                        const obj = { __rawCols: arr, __rowNum: r + 1 };
+                        for (let c = 0; c < headerRow.length; c++) {
+                            obj[headerRow[c]] = arr[c] !== undefined ? arr[c] : '';
+                        }
+                        rows.push(obj);
+                    }
+
+                    pendingParsedRows = rows;
+                    pendingHeaders = headerRow;
+
+                    // Detetar colunas dando prioridade absoluta à Coluna H (LAT, índice 7) e Coluna I (LONG, índice 8)
+                    const mapping = autoDetectColumns(headerRow, rows);
+                    const conversionResult = convertRowsWithMapping(rows, mapping);
+                    const imported = conversionResult.items;
+
+                    renderCoordDiagnosticReport(conversionResult.stats, mapping);
+                    populateColumnMapperUI(headerRow, mapping, rows.length, rows[0]);
+
+                    if (imported.length > 0) {
+                        alminhas = imported;
+                        saveDatasetToCache(alminhas);
+                        applyCategoryAndRebuildClusters();
+                        updateAllDistancesAndUI(false);
+
+                        const nowStr = new Date().toLocaleTimeString('pt-PT', { hour: '2-digit', minute: '2-digit' });
+                        const fixedNote = conversionResult.stats.fixedCount > 0
+                            ? ` • ${conversionResult.stats.fixedCount} corrigidos do mar`
+                            : '';
+                        updateSyncStatusUI(
+                            'Google Sheets Sincronizado',
+                            `${imported.length.toLocaleString('pt-PT')} monumentos (Col H/I${fixedNote} • ${nowStr})`,
+                            false
+                        );
+                        if (!silentMode) {
+                            showToast(`${imported.length.toLocaleString('pt-PT')} monumentos sincronizados (Coluna H = LAT | Coluna I = LONG)!`);
+                        }
+                    } else {
+                        updateSyncStatusUI('Ajuste Manual Necessário', `${rows.length} linhas lidas — confirme as colunas abaixo`, false);
+                        if (!silentMode) {
+                            openSheetsModal();
+                            showToast("Confirme as colunas da sua folha no painel para concluir a importação.");
+                        }
+                    }
+                },
+                error: function (err) {
+                    console.error("Erro PapaParse:", err);
+                    updateSyncStatusUI('Erro ao processar CSV', 'Formato de ficheiro inválido', false);
+                }
+            });
+        }
+
+        function autoDetectColumns(headers, allRows) {
+            const norm = s => String(s || '').toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
+
+            // 1. Prioridade Absoluta: Coluna H (índice 7) para LAT e Coluna I (índice 8) para LONG
+            let latCol = headers[7] || ''; // Coluna H (8.ª coluna)
+            let lngCol = headers[8] || ''; // Coluna I (9.ª coluna)
+
+            // Verificar se existe cabeçalho explícito com nome 'lat' ou 'long' noutra posição caso H e I não tenham números
+            const sampleRows = Array.isArray(allRows) ? allRows.slice(0, 15) : (allRows ? [allRows] : []);
+            let colHHasValidLat = false;
+            for (const r of sampleRows) {
+                if (r && r.__rawCols && r.__rawCols.length >= 9) {
+                    const test = sanitizePortugueseCoords(r.__rawCols[7], r.__rawCols[8], true);
+                    if (test && isInsidePortugalLand(test.lat, test.lng)) {
+                        colHHasValidLat = true;
                         break;
                     }
                 }
             }
 
-            document.getElementById('loader').style.opacity = '0';
-            setTimeout(() => document.getElementById('loader').style.display = 'none', 500);
+            if (!colHHasValidLat) {
+                const exactLatHeader = headers.find(h => ['lat', 'latitude', 'coord_lat', 'y'].includes(norm(h)));
+                const exactLngHeader = headers.find(h => ['long', 'lng', 'lon', 'longitude', 'coord_long', 'x'].includes(norm(h)));
+                if (exactLatHeader) latCol = exactLatHeader;
+                if (exactLngHeader) lngCol = exactLngHeader;
+            }
 
-            aplicarFiltros(true);
+            const findCol = (patterns, excludeCols = []) => {
+                for (const p of patterns) {
+                    const match = headers.find(h => !excludeCols.includes(h) && norm(h) === p);
+                    if (match) return match;
+                }
+                for (const p of patterns) {
+                    const match = headers.find(h => !excludeCols.includes(h) && norm(h).includes(p));
+                    if (match) return match;
+                }
+                return '';
+            };
+
+            const usedCoords = [latCol, lngCol].filter(Boolean);
+
+            return {
+                name: findCol(['designacao', 'nome', 'titulo', 'monumento', 'alminhas', 'alminha', 'local', 'id'], usedCoords) || headers[1] || headers[0] || '',
+                type: findCol(['tipo', 'tipologia', 'categoria', 'classificacao', 'monumento_tipo'], usedCoords) || headers[2] || '',
+                lat: latCol,
+                lng: lngCol,
+                region: findCol(['concelho', 'municipio', 'freguesia', 'distrito', 'localidade', 'lugar'], usedCoords) || headers[3] || headers[4] || '',
+                desc: findCol(['descricao', 'observacoes', 'notas', 'inscricao', 'memoria', 'detalhe'], usedCoords) || headers[5] || ''
+            };
         }
 
-        function renderizarMarcadores(dados) {
-            markersCluster.clearLayers();
+        /**
+         * VERIFICADOR DE TERRA FIRME EM PORTUGAL (CONTINENTE + AÇORES + MADEIRA)
+         * Evita que coordenadas mal formatadas (ex: 38.5, -11.2 ou 31.5, -8.4) caiam no Oceano Atlântico!
+         */
+        function isInsidePortugalLand(lat, lng) {
+            if (isNaN(lat) || isNaN(lng)) return false;
 
-            let contador = 0;
-            let contadorFotos = 0;
+            // 1. Arquipélago da Madeira (32.35°N a 33.15°N, -17.35°W a -16.20°W)
+            if (lat >= 32.35 && lat <= 33.15 && lng >= -17.35 && lng <= -16.20) {
+                return true;
+            }
 
-            dados.forEach((item, index) => {
-                const marker = L.marker([item.lat, item.lon], {
-                    icon: criarIcone(item.tipologia)
-                });
+            // 2. Arquipélago dos Açores (36.85°N a 39.78°N, -31.35°W a -24.95°W)
+            if (lat >= 36.85 && lat <= 39.78 && lng >= -31.35 && lng <= -24.95) {
+                return true;
+            }
 
-                let tipoLower = (item.tipologia || "Outro").toLowerCase();
-                let badgeClass = "badge-outro";
-                if (tipoLower.includes("alminha")) badgeClass = "badge-alminhas";
-                else if (tipoLower.includes("nicho-cruz")) badgeClass = "badge-nicho-cruz";
-                else if (tipoLower.includes("nicho")) badgeClass = "badge-nicho";
-                else if (tipoLower.includes("cruz")) badgeClass = "badge-cruz";
+            // 3. Portugal Continental (36.95°N a 42.16°N) com limite costeiro dinâmico a Oeste para não cair no Atlântico
+            if (lat >= 36.95 && lat <= 42.16) {
+                let minWestLng = -9.55; // Cabo da Roca / Cascais / Peniche
+                if (lat > 41.0) {
+                    minWestLng = -8.92; // Costa do Porto / Viana / Caminha (a oeste de -8.92 já é Oceano Atlântico!)
+                } else if (lat > 40.1) {
+                    minWestLng = -9.08; // Costa de Aveiro / Santa Maria da Feira / Figueira da Foz (a oeste de -9.08 é mar!)
+                } else if (lat < 37.25) {
+                    minWestLng = -9.02; // Costa do Algarve / Sagres
+                }
+                const maxEastLng = -6.15; // Fronteira Leste (Miranda do Douro / Elvas)
+                return lng >= minWestLng && lng <= maxEastLng;
+            }
 
-                let htmlFotos = "";
-                if (item.foto && item.foto.includes("http")) {
-                    const fotosRaw = item.foto.split(/[,;\n\s]+/).map(f => f.trim()).filter(f => f.startsWith('http'));
-                    if (fotosRaw.length > 0) {
-                        contadorFotos++;
-                        let imgsHtml = "";
-                        fotosRaw.forEach((fRaw, idx) => {
-                            const activeClass = idx === 0 ? "active" : "";
-                            const fUrl = normalizarLinkFotoDrive(fRaw);
-                            const idDrive = extrairIdDrive(fRaw);
-                            const fallbackUrl = idDrive ? `https://drive.google.com/thumbnail?id=${idDrive}&sz=w1000` : fUrl;
-                            imgsHtml += `<img src="${fUrl}" onerror="if(this.src!=='${fallbackUrl}'){this.src='${fallbackUrl}';}" class="carousel-img ${activeClass}" alt="Foto ${item.id}" referrerpolicy="no-referrer">`;
-                        });
+            return false;
+        }
 
-                        if (fotosRaw.length > 1) {
-                            htmlFotos = `
-                                <div class="carousel-container" id="carousel-${index}">
-                                    ${imgsHtml}
-                                    <button class="carousel-btn prev" onclick="mudarFoto(${index}, -1)">❮</button>
-                                    <button class="carousel-btn next" onclick="mudarFoto(${index}, 1)">❯</button>
-                                    <div class="carousel-counter"><span id="curr-${index}">1</span>/${fotosRaw.length}</div>
-                                </div>`;
-                        } else {
-                            htmlFotos = `
-                                <div class="carousel-container">
-                                    ${imgsHtml}
-                                </div>`;
+        /**
+         * CORRETOR INTELIGENTE DE COORDENADAS DE PORTUGAL (COLUNA H = LAT | COLUNA I = LONG)
+         * Suporta "40.455126, -8.500566", pontos (.) ou vírgulas (,) decimais e evita distorção de 6 casas decimais.
+         */
+        function parseSingleCoordinateValue(rawVal, coordHint = 'AUTO') {
+            if (rawVal === undefined || rawVal === null) return NaN;
+            if (typeof rawVal === 'number') return rawVal;
+
+            let str = String(rawVal).trim();
+            if (!str) return NaN;
+
+            // Remover aspas envolventes
+            str = str.replace(/^["']+|["']+$/g, '').trim();
+
+            // Verificar se tem indicação de Oeste (W / O) ou Sul (S)
+            const isWestOrSouth = /[wWoOsS]/.test(str);
+            const hasMinus = str.includes('-');
+
+            // Verificar formato DMS (ex: 40° 55' 31.4" N ou 40°55'31"N)
+            const dmsMatch = str.match(/(-?\d+)\s*[°ºdD]\s*(\d+)\s*['’′mM]\s*(\d+(?:[.,]\d+)?)/);
+            if (dmsMatch) {
+                const deg = Math.abs(parseFloat(dmsMatch[1]));
+                const min = parseFloat(dmsMatch[2]);
+                const sec = parseFloat(dmsMatch[3].replace(',', '.'));
+                let dec = deg + (min / 60) + (sec / 3600);
+                if (hasMinus || isWestOrSouth) dec = -dec;
+                return dec;
+            }
+
+            // Converter qualquer vírgula decimal em ponto para leitura universal e limpar espaços
+            let cleaned = str.replace(/,/g, '.').replace(/[^\d.+-]/g, '');
+            if (!cleaned) return NaN;
+
+            // Se tiver mais do que um ponto (ex: Google Sheets formatou 40.455.126 ou -8.500.566)
+            if ((cleaned.match(/\./g) || []).length > 1) {
+                const parts = cleaned.split('.');
+                cleaned = parts[0] + '.' + parts.slice(1).join('');
+            }
+
+            let num = parseFloat(cleaned);
+            if (isNaN(num)) return NaN;
+
+            // CRÍTICO: Se o Google Sheets em PT exportou "40.455126" ou "-8.500566" sem ponto (ex: 40455126 ou -8500566)
+            // Antigamente -8500566 era lido como -85.00566 (2 dígitos) e depois dividido por 10 -> -8.500566,
+            // ou valores como -8912345 viravam -89.12345 -> -8.912345 (no mar!).
+            const absNum = Math.abs(num);
+            if (absNum > 90) {
+                const sign = (num < 0 || hasMinus || isWestOrSouth) ? -1 : 1;
+                const digits = String(Math.round(absNum));
+                const firstTwo = parseInt(digits.slice(0, 2), 10);
+
+                if (coordHint === 'LAT') {
+                    // Latitude em Portugal tem sempre 2 dígitos inteiros (32 a 42)
+                    num = sign * parseFloat(digits.slice(0, 2) + '.' + digits.slice(2));
+                } else if (coordHint === 'LNG') {
+                    // Longitude em Portugal Continental tem 1 dígito inteiro (-6 a -9); Ilhas têm 2 (-16 a -31)
+                    if (firstTwo >= 15 && firstTwo <= 32) {
+                        num = sign * parseFloat(digits.slice(0, 2) + '.' + digits.slice(2));
+                    } else {
+                        num = sign * parseFloat(digits.slice(0, 1) + '.' + digits.slice(1));
+                    }
+                } else {
+                    if (firstTwo >= 32 && firstTwo <= 43 && sign > 0) {
+                        num = sign * parseFloat(digits.slice(0, 2) + '.' + digits.slice(2));
+                    } else if (firstTwo >= 15 && firstTwo <= 32) {
+                        num = sign * parseFloat(digits.slice(0, 2) + '.' + digits.slice(2));
+                    } else {
+                        num = sign * parseFloat(digits.slice(0, 1) + '.' + digits.slice(1));
+                    }
+                }
+            }
+
+            if ((isWestOrSouth || hasMinus) && num > 0) num = -num;
+            return num;
+        }
+
+        // Extrai um par de coordenadas mesmo quando estão juntas na mesma célula: ex: "40.455126, -8.500566"
+        function tryExtractCoordinatePairFromString(rawStr) {
+            if (rawStr === undefined || rawStr === null) return null;
+            const s = String(rawStr).trim().replace(/^["']+|["']+$/g, '');
+            // Procura dois números decimais (com ponto ou vírgula) separados por vírgula, ponto-e-vírgula ou espaço
+            const pairRegex = /([+-]?\d{1,2}[.,]\d{3,8})\s*[,;|\s]\s*([+-]?\d{1,2}[.,]\d{3,8})/;
+            const m = s.match(pairRegex);
+            if (m) {
+                return { first: m[1], second: m[2] };
+            }
+            return null;
+        }
+
+        function sanitizePortugueseCoords(rawLat, rawLng, autoFixEnabled = true) {
+            let wasFixed = false;
+            const reasons = [];
+
+            // Caso 1: O utilizador tem "40.455126, -8.500566" dentro de uma única célula (Coluna H ou Coluna I)
+            const pairInLat = tryExtractCoordinatePairFromString(rawLat);
+            if (pairInLat) {
+                rawLat = pairInLat.first;
+                rawLng = pairInLat.second;
+                wasFixed = true;
+                reasons.push('par "LAT, LONG" separado');
+            } else {
+                const pairInLng = tryExtractCoordinatePairFromString(rawLng);
+                if (pairInLng) {
+                    rawLat = pairInLng.first;
+                    rawLng = pairInLng.second;
+                    wasFixed = true;
+                    reasons.push('par "LAT, LONG" separado');
+                } else if (rawLat !== undefined && rawLng !== undefined) {
+                    // Caso 2: O CSV sem aspas partiu "40.455126, -8.500566" em duas colunas seguidas,
+                    // ou usou vírgula decimal sem aspas
+                    const combined = `${String(rawLat).trim()}, ${String(rawLng).trim()}`;
+                    const pairCombined = tryExtractCoordinatePairFromString(combined);
+                    if (pairCombined) {
+                        rawLat = pairCombined.first;
+                        rawLng = pairCombined.second;
+                    }
+                }
+            }
+
+            let lat = parseSingleCoordinateValue(rawLat, 'LAT');
+            let lng = parseSingleCoordinateValue(rawLng, 'LNG');
+
+            if (isNaN(lat) || isNaN(lng)) return null;
+            if (lat === 0 && lng === 0) return null;
+
+            if (autoFixEnabled) {
+                // 1. Detetar se LAT e LONG estão TROCADAS (ex: -8.500566 na LAT e 40.455126 na LONG)
+                const latLooksLikePtLng = Math.abs(lat) >= 6.0 && Math.abs(lat) <= 31.6;
+                const lngLooksLikePtLat = Math.abs(lng) >= 32.0 && Math.abs(lng) <= 42.5;
+
+                if (latLooksLikePtLng && lngLooksLikePtLat) {
+                    const temp = lat;
+                    lat = lng;
+                    lng = temp;
+                    wasFixed = true;
+                    reasons.push('LAT/LONG trocadas');
+                }
+
+                // 2. Garantir Latitude Positiva em Portugal (32.0°N a 42.3°N)
+                if (lat < 0 && Math.abs(lat) >= 32.0 && Math.abs(lat) <= 42.5) {
+                    lat = Math.abs(lat);
+                    wasFixed = true;
+                    reasons.push('sinal (+) na LAT');
+                }
+
+                // 3. Garantir Longitude NEGATIVA em Portugal (-6.1°W a -31.5°W)
+                if (lat >= 32.0 && lat <= 42.6 && lng > 0 && lng >= 5.5 && lng <= 32.0) {
+                    lng = -Math.abs(lng);
+                    wasFixed = true;
+                    reasons.push('sinal (-) na LONG');
+                }
+
+                // 4. Se a longitude em Portugal Continental perdeu o ponto decimal e ficou entre -60 e -96 (ex: -85.00566 em vez de -8.500566)
+                if (lat >= 36.9 && lat <= 42.2 && lng <= -60 && lng >= -96) {
+                    lng = lng / 10;
+                    wasFixed = true;
+                    reasons.push('ponto decimal LONG ajustado');
+                }
+            }
+
+            if (Math.abs(lat) > 90 || Math.abs(lng) > 180) return null;
+
+            return { lat, lng, wasFixed, reasons };
+        }
+
+        function extractLatLngFromRow(row, latCol, lngCol) {
+            const autoFixEl = document.getElementById('autoFixPortugalCoordsToggle');
+            const autoFix = autoFixEl ? autoFixEl.checked : true;
+
+            // 1. Procurar primeiro se alguma célula na Coluna H (7), Coluna I (8) ou qualquer outra coluna contém o formato completo "40.455126, -8.500566"
+            if (row.__rawCols) {
+                const priorityCols = [7, 8, 6, 9];
+                for (const cIdx of priorityCols) {
+                    if (row.__rawCols[cIdx] !== undefined) {
+                        const pair = tryExtractCoordinatePairFromString(row.__rawCols[cIdx]);
+                        if (pair) {
+                            const cand = sanitizePortugueseCoords(pair.first, pair.second, autoFix);
+                            if (cand && isInsidePortugalLand(cand.lat, cand.lng)) {
+                                return cand;
+                            }
                         }
                     }
                 }
+                // Varrer todas as colunas da linha à procura de um par "40.455126, -8.500566"
+                for (let c = 0; c < row.__rawCols.length; c++) {
+                    const pair = tryExtractCoordinatePairFromString(row.__rawCols[c]);
+                    if (pair) {
+                        const cand = sanitizePortugueseCoords(pair.first, pair.second, autoFix);
+                        if (cand && isInsidePortugalLand(cand.lat, cand.lng)) {
+                            return cand;
+                        }
+                    }
+                }
+            }
 
-                let htmlMedidas = "";
-                if (item.altura || item.largura || item.profundidade) {
-                    htmlMedidas = `<div class="popup-row"><strong>Medidas:</strong> ${item.altura || "-"} (Alt) x ${item.largura || "-"} (Larg) x ${item.profundidade || "-"} (Prof)</div>`;
+            let rawLat = undefined;
+            let rawLng = undefined;
+
+            // 2. Ler diretamente a Coluna H (índice 7) e a Coluna I (índice 8)
+            const latColIdx = pendingHeaders.indexOf(latCol);
+            const lngColIdx = pendingHeaders.indexOf(lngCol);
+
+            if (row.__rawCols) {
+                if (latColIdx >= 0 && row.__rawCols[latColIdx] !== undefined && String(row.__rawCols[latColIdx]).trim() !== '') {
+                    rawLat = row.__rawCols[latColIdx];
+                } else if (row.__rawCols.length >= 9 && row.__rawCols[7] !== undefined && String(row.__rawCols[7]).trim() !== '') {
+                    rawLat = row.__rawCols[7]; // Coluna H (8.ª coluna, índice 7)
                 }
 
-                let htmlPainel = item.painel ? `<div class="popup-row"><strong>Iconografia / Painel:</strong> ${item.painel}</div>` : "";
-                let htmlDescricao = item.descricao ? `<div class="popup-description">${item.descricao}</div>` : "";
-                let htmlAutor = item.autor ? `<div class="popup-row" style="font-size:11px; color:#666;"><strong>Recolha/Autor:</strong> ${item.autor}</div>` : "";
+                if (lngColIdx >= 0 && row.__rawCols[lngColIdx] !== undefined && String(row.__rawCols[lngColIdx]).trim() !== '') {
+                    rawLng = row.__rawCols[lngColIdx];
+                } else if (row.__rawCols.length >= 9 && row.__rawCols[8] !== undefined && String(row.__rawCols[8]).trim() !== '') {
+                    rawLng = row.__rawCols[8]; // Coluna I (9.ª coluna, índice 8)
+                }
+            }
 
-                let btnFicha = (item.ficha && item.ficha.includes("http")) ? `<a href="${item.ficha}" target="_blank" rel="noopener" class="btn-ficha">📄 Ficha Técnica</a>` : "";
-                let btnGps = `<a href="https://www.google.com/maps?q=${item.lat},${item.lon}" target="_blank" rel="noopener" class="btn-gps" title="Abrir no Google Maps">📍 GPS</a>`;
+            if (rawLat === undefined && latCol && row[latCol] !== undefined) rawLat = row[latCol];
+            if (rawLng === undefined && lngCol && row[lngCol] !== undefined) rawLng = row[lngCol];
 
-                const popupContent = `
-                    <div class="popup-header">
-                        <span>${item.id || "Registo PRP"}</span>
-                        <span class="popup-badge ${badgeClass}">${item.tipologia || "Património"}</span>
-                    </div>
-                    <div class="popup-body">
-                        ${htmlFotos}
-                        <div class="popup-row"><strong>Local:</strong> ${item.lugar ? item.lugar + ', ' : ''}${item.freguesia}, ${item.concelho}</div>
-                        ${item.cronologia ? `<div class="popup-row"><strong>Cronologia:</strong> ${item.cronologia}</div>` : ""}
-                        ${htmlMedidas}
-                        ${htmlPainel}
-                        ${htmlDescricao}
-                        ${htmlAutor}
-                        <div class="popup-actions">
-                            ${btnFicha}
-                            ${btnGps}
-                        </div>
-                    </div>
-                `;
+            const candidate = sanitizePortugueseCoords(rawLat, rawLng, autoFix);
 
-                marker.bindPopup(popupContent, { maxWidth: 320 });
-                markersCluster.addLayer(marker);
-                contador++;
-            });
+            // Se o candidato das Colunas H e I cair em terra firme em Portugal, devolver imediatamente!
+            if (candidate && isInsidePortugalLand(candidate.lat, candidate.lng)) {
+                return candidate;
+            }
 
-            document.getElementById('stat-total').textContent = `Monumentos: ${contador}`;
-            document.getElementById('stat-fotos').textContent = `Com foto: ${contadorFotos}`;
+            // 3. Caso o CSV tenha partido números com vírgula ou deslocado colunas, testar pares de colunas adjacentes na linha
+            if (row.__rawCols) {
+                for (let c = 0; c < row.__rawCols.length - 1; c++) {
+                    const tryPair = sanitizePortugueseCoords(row.__rawCols[c], row.__rawCols[c + 1], autoFix);
+                    if (tryPair && isInsidePortugalLand(tryPair.lat, tryPair.lng)) {
+                        tryPair.wasFixed = true;
+                        const colLetter1 = String.fromCharCode(65 + c);
+                        const colLetter2 = String.fromCharCode(65 + c + 1);
+                        tryPair.reasons.push(`lido de Col ${colLetter1}/${colLetter2}`);
+                        return tryPair;
+                    }
+                }
+            }
+
+            if (candidate && candidate.lat >= 32.3 && candidate.lat <= 42.2 && candidate.lng >= -31.4 && candidate.lng <= -6.1) {
+                return candidate;
+            }
+
+            return null;
         }
 
-        window.mudarFoto = function(index, direcao) {
-            const container = document.getElementById(`carousel-${index}`);
-            if (!container) return;
-            const imagens = container.querySelectorAll('.carousel-img');
-            const counter = document.getElementById(`curr-${index}`);
-            
-            let currentIndex = 0;
-            imagens.forEach((img, idx) => {
-                if (img.classList.contains('active')) currentIndex = idx;
-                img.classList.remove('active');
-            });
+        function convertRowsWithMapping(rows, mapping) {
+            const items = [];
+            const stats = {
+                totalRows: rows.length,
+                validCount: 0,
+                fixedCount: 0,
+                skippedCount: 0,
+                fixedExamples: [],
+                skippedRows: []
+            };
 
-            let novoIndex = currentIndex + direcao;
-            if (novoIndex >= imagens.length) novoIndex = 0;
-            if (novoIndex < 0) novoIndex = imagens.length - 1;
+            for (let i = 0; i < rows.length; i++) {
+                const row = rows[i];
+                const coords = extractLatLngFromRow(row, mapping.lat, mapping.lng);
+                const rawName = (mapping.name && row[mapping.name]) ? String(row[mapping.name]).trim() : '';
 
-            imagens[novoIndex].classList.add('active');
-            if (counter) counter.textContent = novoIndex + 1;
-        };
-
-        function aplicarFiltros(ajustarZoomInicial = false) {
-            const concelhoSel = document.getElementById('select-concelho').value;
-            const tipologiaSel = document.getElementById('select-tipologia').value;
-
-            const dadosFiltrados = todosDadosGlobais.filter(item => {
-                const matchConcelho = (concelhoSel === "TODOS" || item.concelho === concelhoSel);
-                
-                let matchTipologia = false;
-                const tItem = (item.tipologia || "").trim().toLowerCase();
-                if (tipologiaSel === "TODOS") {
-                    matchTipologia = true;
-                } else if (tipologiaSel === "Nicho-Cruz") {
-                    matchTipologia = tItem.includes("nicho-cruz");
-                } else if (tipologiaSel === "Nicho") {
-                    matchTipologia = (tItem.includes("nicho") && !tItem.includes("cruz"));
-                } else if (tipologiaSel === "Cruz") {
-                    matchTipologia = (tItem.includes("cruz") && !tItem.includes("nicho"));
-                } else {
-                    matchTipologia = tItem.includes(tipologiaSel.toLowerCase());
+                if (!coords) {
+                    stats.skippedCount++;
+                    if (stats.skippedRows.length < 15) {
+                        stats.skippedRows.push(`Linha ${row.__rowNum || (i + 2)}: ${rawName || 'Sem nome'} (LAT="${row[mapping.lat] || ''}", LONG="${row[mapping.lng] || ''}")`);
+                    }
+                    continue;
                 }
 
-                return matchConcelho && matchTipologia;
-            });
-
-            renderizarMarcadores(dadosFiltrados);
-
-            if ((concelhoSel !== "TODOS" || ajustarZoomInicial) && dadosFiltrados.length > 0) {
-                const bounds = L.latLngBounds(dadosFiltrados.map(d => [d.lat, d.lon]));
-                if (bounds.isValid()) {
-                    map.fitBounds(bounds, { padding: [50, 50], maxZoom: 15 });
+                stats.validCount++;
+                if (coords.wasFixed) {
+                    stats.fixedCount++;
+                    if (stats.fixedExamples.length < 20) {
+                        stats.fixedExamples.push(
+                            `Linha ${row.__rowNum || (i + 2)} (${rawName || '#' + (i + 1)}): [${row[mapping.lat]}, ${row[mapping.lng]}] → [${coords.lat.toFixed(5)}, ${coords.lng.toFixed(5)}] (${coords.reasons.join(', ')})`
+                        );
+                    }
                 }
+
+                const rawType = (mapping.type && row[mapping.type]) ? String(row[mapping.type]).trim() : 'Alminhas';
+                const category = normalizeCategory(rawType);
+                const region = (mapping.region && row[mapping.region]) ? String(row[mapping.region]).trim() : 'Portugal';
+                const desc = (mapping.desc && row[mapping.desc]) ? String(row[mapping.desc]).trim() : '';
+
+                items.push({
+                    id: `gs-${i}`,
+                    name: rawName || `${category} #${i + 1}`,
+                    category,
+                    region,
+                    era: rawType !== category ? rawType : '',
+                    lat: coords.lat,
+                    lng: coords.lng,
+                    description: desc || `${category} inventariado em ${region}.`
+                });
+            }
+
+            return { items, stats };
+        }
+
+        function renderCoordDiagnosticReport(stats, mapping) {
+            const box = document.getElementById('coordDiagnosticBox');
+            if (!box) return;
+            box.classList.remove('hidden');
+
+            const latIdx = pendingHeaders.indexOf(mapping.lat);
+            const lngIdx = pendingHeaders.indexOf(mapping.lng);
+            const latLetter = latIdx >= 0 ? String.fromCharCode(65 + latIdx) : 'H';
+            const lngLetter = lngIdx >= 0 ? String.fromCharCode(65 + lngIdx) : 'I';
+            const latLabel = `Col ${latLetter} (${mapping.lat || 'LAT'})`;
+            const lngLabel = `Col ${lngLetter} (${mapping.lng || 'LONG'})`;
+
+            document.getElementById('diagColsUsed').textContent = `${latLabel} | ${lngLabel}`;
+            document.getElementById('diagValidCount').textContent = stats.validCount.toLocaleString('pt-PT');
+            document.getElementById('diagFixedCount').textContent = stats.fixedCount.toLocaleString('pt-PT');
+            document.getElementById('diagSkippedCount').textContent = stats.skippedCount.toLocaleString('pt-PT');
+
+            const samplesEl = document.getElementById('diagFixedSamples');
+            const lines = [];
+            if (stats.fixedExamples.length > 0) {
+                lines.push(`✓ Exemplos corrigidos do mar (${stats.fixedCount}):`);
+                lines.push(...stats.fixedExamples);
+            }
+            if (stats.skippedRows.length > 0) {
+                lines.push(`⚠ Linhas sem coordenadas válidas (${stats.skippedCount}):`);
+                lines.push(...stats.skippedRows);
+            }
+
+            if (lines.length > 0) {
+                samplesEl.textContent = lines.join('\n');
+                samplesEl.style.whiteSpace = 'pre-line';
+                samplesEl.classList.remove('hidden');
+            } else {
+                samplesEl.classList.add('hidden');
             }
         }
 
-        document.getElementById('select-concelho').addEventListener('change', () => aplicarFiltros(true));
-        document.getElementById('select-tipologia').addEventListener('change', () => aplicarFiltros(false));
+        function repairExistingCachedCoordinates() {
+            // Se houver linhas da folha em memória, reprocessar a partir das linhas originais forçando a Coluna H (índice 7) e Coluna I (índice 8)
+            if (pendingParsedRows && pendingParsedRows.length > 0) {
+                const mapping = {
+                    name: document.getElementById('mapColName').value || (pendingHeaders[1] || ''),
+                    type: document.getElementById('mapColType').value || (pendingHeaders[2] || ''),
+                    lat: document.getElementById('mapColLat').value || (pendingHeaders[7] || 'LAT'),
+                    lng: document.getElementById('mapColLng').value || (pendingHeaders[8] || 'LONG'),
+                    region: document.getElementById('mapColRegion').value || (pendingHeaders[3] || ''),
+                    desc: document.getElementById('mapColDesc').value || (pendingHeaders[5] || '')
+                };
+                const res = convertRowsWithMapping(pendingParsedRows, mapping);
+                if (res.items.length > 0) {
+                    alminhas = res.items;
+                    saveDatasetToCache(alminhas);
+                    applyCategoryAndRebuildClusters();
+                    updateAllDistancesAndUI(false);
+                    renderCoordDiagnosticReport(res.stats, mapping);
+                    showToast(`${res.items.length.toLocaleString('pt-PT')} monumentos lidos da Coluna H e Coluna I!`);
+                    return;
+                }
+            }
 
-        window.onload = iniciarCarregamentoDados;
+            // Se não houver linhas em memória mas existir link do Google Sheets guardado, voltar a descarregar do Sheets agora com Coluna H e I!
+            const savedUrl = (document.getElementById('sheetsUrlInput') && document.getElementById('sheetsUrlInput').value.trim()) || localStorage.getItem('rota_sheets_url');
+            if (savedUrl) {
+                fetchAndSyncGoogleSheet(savedUrl, false);
+                return;
+            }
+
+            // Caso contrário, varrer todos os monumentos atuais na base de dados e corrigir coordenadas no mar
+            let fixed = 0;
+            const fixedExamples = [];
+            const validItems = [];
+            for (let i = 0; i < alminhas.length; i++) {
+                const m = alminhas[i];
+                const oldLat = m.lat;
+                const oldLng = m.lng;
+                const sanitized = sanitizePortugueseCoords(oldLat, oldLng, true);
+                if (sanitized && isInsidePortugalLand(sanitized.lat, sanitized.lng)) {
+                    if (sanitized.wasFixed || Math.abs(sanitized.lat - oldLat) > 0.00001 || Math.abs(sanitized.lng - oldLng) > 0.00001) {
+                        m.lat = sanitized.lat;
+                        m.lng = sanitized.lng;
+                        fixed++;
+                        if (fixedExamples.length < 15) {
+                            fixedExamples.push(`${m.name}: [${oldLat}, ${oldLng}] → [${m.lat.toFixed(5)}, ${m.lng.toFixed(5)}]`);
+                        }
+                    }
+                    validItems.push(m);
+                } else {
+                    fixed++;
+                    fixedExamples.push(`Removido ponto no mar: ${m.name} [${oldLat}, ${oldLng}]`);
+                }
+            }
+
+            alminhas = validItems;
+            saveDatasetToCache(alminhas);
+            applyCategoryAndRebuildClusters();
+            updateAllDistancesAndUI(false);
+
+            renderCoordDiagnosticReport({
+                totalRows: alminhas.length,
+                validCount: alminhas.length,
+                fixedCount: fixed,
+                skippedCount: 0,
+                fixedExamples,
+                skippedRows: []
+            }, { lat: 'Coluna H (LAT)', lng: 'Coluna I (LONG)' });
+
+            showToast(fixed > 0
+                ? `${fixed} entradas ajustadas (Coluna H = LAT | Coluna I = LONG)!`
+                : `Todas as ${alminhas.length.toLocaleString('pt-PT')} coordenadas estão em terra firme!`);
+        }
+
+        function populateColumnMapperUI(headers, mapping, totalRows, sampleRow) {
+            const box = document.getElementById('columnMapperBox');
+            box.classList.remove('hidden');
+            document.getElementById('detectedRowsCount').textContent = `${totalRows.toLocaleString('pt-PT')} linhas na folha`;
+
+            const selects = [
+                { id: 'mapColName', val: mapping.name },
+                { id: 'mapColType', val: mapping.type },
+                { id: 'mapColLat', val: mapping.lat },
+                { id: 'mapColLng', val: mapping.lng },
+                { id: 'mapColRegion', val: mapping.region },
+                { id: 'mapColDesc', val: mapping.desc }
+            ];
+
+            selects.forEach(s => {
+                const el = document.getElementById(s.id);
+                if (!el) return;
+                el.innerHTML = `<option value="">(Nenhuma / Auto)</option>` +
+                    headers.map((h, idx) => {
+                        const colLetter = String.fromCharCode(65 + idx);
+                        const sampleVal = sampleRow && sampleRow[h] !== undefined ? String(sampleRow[h]).slice(0, 18) : '';
+                        const colLabel = `Col ${colLetter} (${idx + 1}): ${h}${sampleVal ? ' [' + sampleVal + ']' : ''}`;
+                        return `<option value="${h}" ${h === s.val ? 'selected' : ''}>${colLabel}</option>`;
+                    }).join('');
+            });
+        }
+
+        function applyManualColumnMapping() {
+            const mapping = {
+                name: document.getElementById('mapColName').value,
+                type: document.getElementById('mapColType').value,
+                lat: document.getElementById('mapColLat').value,
+                lng: document.getElementById('mapColLng').value,
+                region: document.getElementById('mapColRegion').value,
+                desc: document.getElementById('mapColDesc').value
+            };
+
+            const res = convertRowsWithMapping(pendingParsedRows, mapping);
+            renderCoordDiagnosticReport(res.stats, mapping);
+
+            if (res.items.length > 0) {
+                alminhas = res.items;
+                saveDatasetToCache(alminhas);
+                applyCategoryAndRebuildClusters();
+                updateAllDistancesAndUI(false);
+                showToast(`${res.items.length.toLocaleString('pt-PT')} monumentos importados (${res.stats.fixedCount} corrigidos do mar)!`);
+            } else {
+                showToast("Não foram encontradas coordenadas numéricas válidas nas colunas escolhidas.");
+            }
+        }
+
+        /******************************************************************
+         * 8. GERADOR DE TESTE IMEDIATO DE 7.053 MONUMENTOS (BENCHMARK)
+         ******************************************************************/
+        function generate7053BenchmarkDataset() {
+            const totalTarget = 7053;
+            const generated = [...INITIAL_ALMINHAS];
+
+            const hubs = [
+                { name: 'Santa Maria da Feira', lat: 40.9254, lng: -8.5428, spread: 0.14 },
+                { name: 'Vale de Cambra (Arões)', lat: 40.7938, lng: -8.3159, spread: 0.12 },
+                { name: 'Oliveira de Azeméis', lat: 40.8380, lng: -8.4770, spread: 0.12 },
+                { name: 'Arouca', lat: 40.9286, lng: -8.2450, spread: 0.14 },
+                { name: 'Viseu', lat: 40.6566, lng: -7.9125, spread: 0.25 },
+                { name: 'Porto', lat: 41.1579, lng: -8.6291, spread: 0.18 },
+                { name: 'Braga', lat: 41.5454, lng: -8.4265, spread: 0.24 },
+                { name: 'Viana do Castelo', lat: 41.6918, lng: -8.8344, spread: 0.22 },
+                { name: 'Ponte de Lima', lat: 41.7671, lng: -8.5839, spread: 0.20 },
+                { name: 'Guimarães', lat: 41.4425, lng: -8.2918, spread: 0.18 },
+                { name: 'Aveiro', lat: 40.6405, lng: -8.6538, spread: 0.20 },
+                { name: 'Coimbra', lat: 40.2033, lng: -8.4103, spread: 0.25 },
+                { name: 'Vila Real', lat: 41.3006, lng: -7.7441, spread: 0.28 },
+                { name: 'Guarda', lat: 40.5373, lng: -7.2658, spread: 0.28 }
+            ];
+
+            const categories = ['Alminhas', 'Alminhas', 'Nicho', 'Cruzeiro', 'Nicho-Cruz'];
+            const saints = ['São Bento', 'Santo António', 'Senhor dos Aflitos', 'Nossa Senhora da Guia', 'São Sebastião', 'Almas do Purgatório', 'São João', 'Santa Luzia', 'Senhor do Bonfim', 'São Roque'];
+            const places = ['da Encruzilhada', 'do Caminho Real', 'da Ponte Velha', 'do Cruzeiro', 'da Calçada', 'da Fonte Santa', 'do Outeiro', 'da Ribeira', 'do Adro', 'da Serra'];
+
+            let idx = generated.length + 1;
+            while (generated.length < totalTarget) {
+                const hub = hubs[idx % hubs.length];
+                const cat = categories[idx % categories.length];
+                const saint = saints[idx % saints.length];
+                const place = places[(idx * 3) % places.length];
+
+                // Distribuição gaussiana aproximada em redor de cada concelho
+                const r1 = (Math.random() + Math.random() - 1) * hub.spread;
+                const r2 = (Math.random() + Math.random() - 1) * hub.spread;
+
+                generated.push({
+                    id: `mon-${idx}`,
+                    name: `${cat === 'Cruzeiro' ? 'Cruzeiro' : (cat === 'Nicho' ? 'Nicho' : 'Alminhas')} de ${saint} ${place}`,
+                    category: cat,
+                    region: hub.name,
+                    era: `Registo #${idx}`,
+                    lat: hub.lat + r1,
+                    lng: hub.lng + r2,
+                    description: `${cat} tradicional em cantaria granítica inventariado no concelho de ${hub.name} (Código #${idx}).`
+                });
+                idx++;
+            }
+
+            alminhas = generated;
+            saveDatasetToCache(alminhas);
+            applyCategoryAndRebuildClusters();
+            updateAllDistancesAndUI(false);
+            updateSyncStatusUI('Base de Dados 7.053 Monumentos Ativa', '7.053 registos carregados com agrupamento rápido');
+            closeSheetsModal();
+            showToast("7.053 monumentos carregados em memória e prontos no mapa!");
+        }
+
+        /******************************************************************
+         * 9. SISTEMA DE ALERTA (VISUAL, SINO WEB AUDIO, VIBRAÇÃO E NOTIFICAÇÃO)
+         ******************************************************************/
+        function triggerProximityAlert(alminha) {
+            const banner = document.getElementById('proximityBanner');
+            const cat = normalizeCategory(alminha.category);
+            document.getElementById('alertBannerCategory').textContent = `${cat} Próximo!`;
+            document.getElementById('alertBannerTitle').textContent = alminha.name;
+            document.getElementById('alertBannerDist').textContent = `a ${Math.round(alminha.currentDistance)} m`;
+            document.getElementById('alertBannerDesc').textContent = `${alminha.region} — ${alminha.description}`;
+            banner.classList.remove('hidden');
+
+            if (soundEnabled) {
+                playChapelBell();
+            }
+
+            if ('vibrate' in navigator) {
+                try { navigator.vibrate([250, 120, 350]); } catch (e) {}
+            }
+
+            if ('Notification' in window && Notification.permission === 'granted') {
+                try {
+                    new Notification(`${cat} a ${Math.round(alminha.currentDistance)}m!`, {
+                        body: `${alminha.name} (${alminha.region})`
+                    });
+                } catch (e) {}
+            }
+        }
+
+        function dismissAlertBanner() {
+            document.getElementById('proximityBanner').classList.add('hidden');
+        }
+
+        function focusAlertedAlminha() {
+            if (nearestAlminha) focusNearestAlminha();
+            dismissAlertBanner();
+        }
+
+        function playChapelBell() {
+            try {
+                if (!audioCtx) {
+                    const AudioContext = window.AudioContext || window.webkitAudioContext;
+                    audioCtx = new AudioContext();
+                }
+                if (audioCtx.state === 'suspended') audioCtx.resume();
+
+                const now = audioCtx.currentTime;
+                const strikeBell = (startTime, baseFreq) => {
+                    const partials = [1, 2, 2.4, 3, 4.2];
+                    const gains = [0.35, 0.2, 0.12, 0.08, 0.04];
+
+                    partials.forEach((ratio, idx) => {
+                        const osc = audioCtx.createOscillator();
+                        const gain = audioCtx.createGain();
+                        osc.type = idx === 0 ? 'sine' : 'triangle';
+                        osc.frequency.setValueAtTime(baseFreq * ratio, startTime);
+
+                        gain.gain.setValueAtTime(0.0001, startTime);
+                        gain.gain.exponentialRampToValueAtTime(gains[idx], startTime + 0.02);
+                        gain.gain.exponentialRampToValueAtTime(0.0001, startTime + (2.4 / (idx + 1)));
+
+                        osc.connect(gain);
+                        gain.connect(audioCtx.destination);
+                        osc.start(startTime);
+                        osc.stop(startTime + 2.5);
+                    });
+                };
+
+                strikeBell(now, 587.33);
+                strikeBell(now + 0.55, 880.00);
+            } catch (e) {
+                console.warn("Web Audio não disponível:", e);
+            }
+        }
+
+        function toggleSound() {
+            soundEnabled = !soundEnabled;
+            const icon = document.getElementById('soundIcon');
+            if (soundEnabled) {
+                icon.className = 'fa-solid fa-bell text-xs text-dourado-400';
+                playChapelBell();
+                showToast("Alerta sonoro de sino ativado");
+            } else {
+                icon.className = 'fa-solid fa-bell-slash text-xs text-slate-400';
+                showToast("Alerta sonoro silenciado");
+            }
+        }
+
+        function updateAlertRadius(val) {
+            alertRadius = parseInt(val, 10);
+            alertedIds.clear();
+            updateAllDistancesAndUI(false);
+            showToast(`Raio de alerta ajustado para ${formatDistance(alertRadius)}`);
+        }
+
+        /******************************************************************
+         * 10. GEOLOCALIZAÇÃO REAL & SIMULADOR DE CAMINHADA
+         ******************************************************************/
+        function tryInitialGeolocation() {
+            if (!('geolocation' in navigator)) return;
+            navigator.geolocation.getCurrentPosition(
+                (pos) => {
+                    userPos.lat = pos.coords.latitude;
+                    userPos.lng = pos.coords.longitude;
+                    setGpsStatusUI(true, "GPS Real Ativo");
+                    map.setView([userPos.lat, userPos.lng], 16);
+                    updateAllDistancesAndUI(false);
+                },
+                () => {
+                    setGpsStatusUI(false, "Simulador (Sta. Maria da Feira)");
+                },
+                { enableHighAccuracy: true, timeout: 5000 }
+            );
+        }
+
+        function requestRealGPS() {
+            if (!('geolocation' in navigator)) {
+                showToast("Geolocalização não suportada neste navegador");
+                return;
+            }
+            showToast("A obter sinal GPS do telemóvel...");
+            if ('Notification' in window && Notification.permission === 'default') {
+                Notification.requestPermission();
+            }
+
+            navigator.geolocation.getCurrentPosition(
+                (pos) => {
+                    stopAutoWalk();
+                    userPos.lat = pos.coords.latitude;
+                    userPos.lng = pos.coords.longitude;
+                    setGpsStatusUI(true, "GPS em Tempo Real");
+                    map.flyTo([userPos.lat, userPos.lng], 17, { duration: 1.2 });
+                    updateAllDistancesAndUI(false);
+                    showToast("Localização GPS atualizada!");
+
+                    if (watchId !== null) navigator.geolocation.clearWatch(watchId);
+                    watchId = navigator.geolocation.watchPosition(
+                        (p) => {
+                            userPos.lat = p.coords.latitude;
+                            userPos.lng = p.coords.longitude;
+                            updateAllDistancesAndUI(false);
+                        },
+                        null,
+                        { enableHighAccuracy: true, maximumAge: 2500 }
+                    );
+                },
+                () => {
+                    setGpsStatusUI(false, "Modo Simulador Ativo");
+                    showToast("Sem acesso ao GPS. Use o simulador ou gere um monumento perto de si!");
+                },
+                { enableHighAccuracy: true, timeout: 8000 }
+            );
+        }
+
+        function setGpsStatusUI(isRealGps, text) {
+            const dot = document.getElementById('gpsStatusDot');
+            const label = document.getElementById('gpsStatusText');
+            label.textContent = text;
+            dot.className = isRealGps
+                ? 'w-2 h-2 rounded-full bg-emerald-400 animate-pulse shrink-0'
+                : 'w-2 h-2 rounded-full bg-dourado-400 animate-pulse shrink-0';
+        }
+
+        function generateRandomNearbyAlminha() {
+            const minMeters = 35;
+            const maxMeters = 135;
+            const distanceMeters = Math.floor(Math.random() * (maxMeters - minMeters + 1)) + minMeters;
+            const randomAngle = Math.random() * 2 * Math.PI;
+
+            const deltaLat = (distanceMeters * Math.cos(randomAngle)) / 111320;
+            const deltaLng = (distanceMeters * Math.sin(randomAngle)) / (111320 * Math.cos(userPos.lat * Math.PI / 180));
+
+            const newLat = userPos.lat + deltaLat;
+            const newLng = userPos.lng + deltaLng;
+
+            const items = [
+                { name: "Alminhas de Nossa Senhora da Guia", cat: "Alminhas" },
+                { name: "Nicho do Caminho Velho", cat: "Nicho" },
+                { name: "Cruzeiro de Santo António", cat: "Cruzeiro" },
+                { name: "Nicho-Cruz do Senhor dos Aflitos", cat: "Nicho-Cruz" }
+            ];
+            const pick = items[Math.floor(Math.random() * items.length)];
+
+            const newAlminha = {
+                id: 'alm-sim-' + Date.now(),
+                name: pick.name,
+                category: pick.cat,
+                region: 'Perto de Si (Teste)',
+                era: 'Tradição Popular',
+                lat: newLat,
+                lng: newLng,
+                description: 'Monumento devocional criado junto à sua localização para testar o alerta sonoro e visual.'
+            };
+
+            alminhas.push(newAlminha);
+            saveDatasetToCache(alminhas);
+            applyCategoryAndRebuildClusters();
+            updateAllDistancesAndUI(false);
+
+            const bounds = L.latLngBounds([[userPos.lat, userPos.lng], [newLat, newLng]]);
+            map.flyToBounds(bounds.pad(0.45), { maxZoom: 18, duration: 0.9 });
+            showToast(`${pick.cat} criado a ${distanceMeters}m da sua posição!`);
+        }
+
+        function toggleSimPad() {
+            document.getElementById('simPadPanel').classList.toggle('hidden');
+        }
+
+        function moveUserStep(northFactor, eastFactor) {
+            const stepMeters = 25;
+            const dLat = (northFactor * stepMeters) / 111320;
+            const dLng = (eastFactor * stepMeters) / (111320 * Math.cos(userPos.lat * Math.PI / 180));
+
+            userPos.lat += dLat;
+            userPos.lng += dLng;
+            setGpsStatusUI(false, "Simulação Manual");
+            updateAllDistancesAndUI(true);
+        }
+
+        function stepTowardsNearest() {
+            if (!nearestAlminha) return;
+            const dist = nearestAlminha.currentDistance;
+            if (dist <= 8) {
+                showToast("Já chegou junto ao Monumento!");
+                stopAutoWalk();
+                return;
+            }
+
+            const moveMeters = Math.min(28, dist * 0.45);
+            const ratio = moveMeters / dist;
+
+            userPos.lat += (nearestAlminha.lat - userPos.lat) * ratio;
+            userPos.lng += (nearestAlminha.lng - userPos.lng) * ratio;
+
+            setGpsStatusUI(false, "Em caminhada simulada");
+            updateAllDistancesAndUI(true);
+        }
+
+        function toggleAutoWalk() {
+            if (autoWalkInterval) stopAutoWalk();
+            else startAutoWalk();
+        }
+
+        function startAutoWalk() {
+            if (!nearestAlminha) return;
+            const btn = document.getElementById('autoWalkBtn');
+            const icon = document.getElementById('autoWalkIcon');
+            const text = document.getElementById('autoWalkText');
+
+            btn.classList.replace('bg-azulejo-800', 'bg-emerald-600');
+            icon.className = 'fa-solid fa-pause text-[10px] text-white';
+            text.textContent = 'A caminhar...';
+
+            stepTowardsNearest();
+            autoWalkInterval = setInterval(() => {
+                if (!nearestAlminha || nearestAlminha.currentDistance <= 12) {
+                    stopAutoWalk();
+                    showToast("Chegou ao destino!");
+                } else {
+                    stepTowardsNearest();
+                }
+            }, 900);
+        }
+
+        function stopAutoWalk() {
+            if (autoWalkInterval) {
+                clearInterval(autoWalkInterval);
+                autoWalkInterval = null;
+            }
+            const btn = document.getElementById('autoWalkBtn');
+            const icon = document.getElementById('autoWalkIcon');
+            const text = document.getElementById('autoWalkText');
+            if (btn) {
+                btn.classList.replace('bg-emerald-600', 'bg-azulejo-800');
+                icon.className = 'fa-solid fa-play text-[10px] text-dourado-400';
+                text.textContent = 'Ir até ao Monumento';
+            }
+        }
+
+        function simulateWalkToSpecific(alminhaId) {
+            const target = alminhas.find(a => a.id === alminhaId);
+            if (!target) return;
+            map.closePopup();
+
+            const dLat = -95 / 111320;
+            const dLng = -95 / 111320;
+            userPos.lat = target.lat + dLat;
+            userPos.lng = target.lng + dLng;
+            alertedIds.delete(target.id);
+
+            updateAllDistancesAndUI(true);
+            map.setZoom(18);
+            startAutoWalk();
+        }
+
+        function centerOnUser() {
+            map.flyTo([userPos.lat, userPos.lng], 17, { duration: 0.8 });
+        }
+
+        function focusNearestAlminha() {
+            if (!nearestAlminha) return;
+            const bounds = L.latLngBounds([
+                [userPos.lat, userPos.lng],
+                [nearestAlminha.lat, nearestAlminha.lng]
+            ]);
+            map.flyToBounds(bounds.pad(0.35), { maxZoom: 18, duration: 0.9 });
+            if (highlightedNearestMarker) {
+                setTimeout(() => {
+                    highlightedNearestMarker.bindPopup(buildPopupHTML(nearestAlminha, nearestAlminha.currentDistance)).openPopup();
+                }, 650);
+            }
+        }
+
+        function teleportUserTo(lat, lng, cityName) {
+            stopAutoWalk();
+            userPos.lat = lat;
+            userPos.lng = lng;
+            alertedIds.clear();
+            closeListModal();
+            setGpsStatusUI(false, `Simulado: ${cityName}`);
+            if (renderScopeMeters !== 'ALL') rebuildClusterMarkers();
+            map.flyTo([lat, lng], 15, { duration: 1.0 });
+            updateAllDistancesAndUI(false);
+            showToast(`Posição movida para ${cityName}`);
+        }
+
+        /******************************************************************
+         * 11. ADICIONAR NOVO MONUMENTO & LISTA PAGINADA (7.053+ REGISTOS)
+         ******************************************************************/
+        function openAddModal() {
+            setFormCoordsToUser();
+            document.getElementById('addModal').classList.remove('hidden');
+        }
+
+        function openAddModalWithCoords(lat, lng) {
+            document.getElementById('inputLat').value = lat.toFixed(6);
+            document.getElementById('inputLng').value = lng.toFixed(6);
+            document.getElementById('addModal').classList.remove('hidden');
+        }
+
+        function closeAddModal() {
+            document.getElementById('addModal').classList.add('hidden');
+        }
+
+        function setFormCoordsToUser() {
+            document.getElementById('inputLat').value = userPos.lat.toFixed(6);
+            document.getElementById('inputLng').value = userPos.lng.toFixed(6);
+        }
+
+        function startMapPickMode() {
+            closeAddModal();
+            mapPickMode = true;
+            document.getElementById('mapClickBanner').classList.remove('hidden');
+        }
+
+        function cancelMapPickMode() {
+            mapPickMode = false;
+            document.getElementById('mapClickBanner').classList.add('hidden');
+        }
+
+        function saveNewAlminha(e) {
+            e.preventDefault();
+            const name = document.getElementById('inputName').value.trim();
+            const category = document.getElementById('inputCategory').value;
+            const region = document.getElementById('inputRegion').value.trim() || 'Portugal';
+            const era = document.getElementById('inputEra').value.trim() || 'Devoção Popular';
+            const description = document.getElementById('inputDesc').value.trim() || 'Monumento registado pelo utilizador.';
+            const lat = parseFloat(document.getElementById('inputLat').value);
+            const lng = parseFloat(document.getElementById('inputLng').value);
+
+            if (!name || isNaN(lat) || isNaN(lng)) {
+                showToast("Por favor preencha o nome e coordenadas válidas.");
+                return;
+            }
+
+            const newAlm = {
+                id: 'alm-user-' + Date.now(),
+                name,
+                category,
+                region,
+                era,
+                lat,
+                lng,
+                description
+            };
+
+            alminhas.push(newAlm);
+            saveDatasetToCache(alminhas);
+            applyCategoryAndRebuildClusters();
+            updateAllDistancesAndUI(false);
+
+            document.getElementById('addAlminhaForm').reset();
+            closeAddModal();
+            map.flyTo([lat, lng], 18, { duration: 0.9 });
+            showToast(`"${name}" guardado no mapa!`);
+        }
+
+        // Lista virtualizada/paginada para suportar 7.053+ monumentos sem atrasos
+        function openListModal() {
+            currentListLimit = 60;
+            document.getElementById('listSearchInput').value = '';
+            document.getElementById('listModal').classList.remove('hidden');
+            renderVirtualList(true);
+        }
+
+        function closeListModal() {
+            document.getElementById('listModal').classList.add('hidden');
+        }
+
+        function openHostingGuideModal() {
+            document.getElementById('hostingGuideModal').classList.remove('hidden');
+        }
+
+        function closeHostingGuideModal() {
+            document.getElementById('hostingGuideModal').classList.add('hidden');
+        }
+
+        function renderVirtualList(resetLimit = false) {
+            if (resetLimit) currentListLimit = 60;
+
+            const query = (document.getElementById('listSearchInput').value || '').toLowerCase().trim();
+            const container = document.getElementById('alminhasListContainer');
+            container.innerHTML = '';
+
+            let source = filteredAlminhas.length > 0 ? filteredAlminhas : alminhas;
+            if (query) {
+                source = source.filter(a =>
+                    (a.name && a.name.toLowerCase().includes(query)) ||
+                    (a.region && a.region.toLowerCase().includes(query)) ||
+                    (a.description && a.description.toLowerCase().includes(query)) ||
+                    (a.category && a.category.toLowerCase().includes(query))
+                );
+            }
+
+            // Ordenar pelos mais próximos
+            const sorted = [...source].sort((a, b) => (a.currentDistance || 0) - (b.currentDistance || 0));
+            document.getElementById('listSubtitleCount').textContent = `${sorted.length.toLocaleString('pt-PT')} monumentos encontrados (ordenados por distância)`;
+
+            const slice = sorted.slice(0, currentListLimit);
+            const fragment = document.createDocumentFragment();
+
+            slice.forEach(alm => {
+                const isClose = alm.currentDistance <= alertRadius;
+                const badgeClass = isClose
+                    ? 'bg-dourado-500 text-azulejo-900'
+                    : 'bg-azulejo-50 text-azulejo-800 border border-azulejo-200';
+                const navUrl = getGoogleMapsNavUrl(alm.lat, alm.lng);
+                const cat = normalizeCategory(alm.category);
+
+                const card = document.createElement('div');
+                card.className = 'p-3 rounded-2xl border border-slate-200 hover:border-azulejo-500 bg-slate-50/60 flex items-center justify-between gap-3 transition';
+                card.innerHTML = `
+                    <div class="min-w-0 flex-1">
+                        <div class="flex items-center gap-1.5">
+                            <span class="text-[10px] font-bold uppercase px-2 py-0.5 rounded-full ${badgeClass}">
+                                ${formatDistance(alm.currentDistance || 0)}
+                            </span>
+                            <span class="text-[10px] font-bold text-azulejo-700 bg-azulejo-100 px-1.5 py-0.5 rounded">${cat}</span>
+                            <span class="text-xs font-semibold text-slate-500 truncate">${alm.region}</span>
+                        </div>
+                        <h4 class="font-serif font-bold text-sm text-azulejo-900 truncate mt-1">${alm.name}</h4>
+                        <p class="text-xs text-slate-600 line-clamp-1">${alm.description}</p>
+                    </div>
+                    <div class="flex items-center gap-1.5 shrink-0">
+                        <a href="${navUrl}" target="_blank" rel="noopener noreferrer" class="px-2.5 py-2 rounded-xl bg-emerald-600 text-white text-xs font-semibold hover:bg-emerald-500 transition" title="Abrir no Google Maps">
+                            <i class="fa-solid fa-diamond-turn-right"></i>
+                        </a>
+                        <button onclick="viewAlminhaFromList('${alm.id}')" class="px-2.5 py-2 rounded-xl bg-azulejo-800 text-white text-xs font-semibold hover:bg-azulejo-700 transition" title="Ver no Mapa">
+                            <i class="fa-solid fa-map-location-dot"></i>
+                        </button>
+                    </div>
+                `;
+                fragment.appendChild(card);
+            });
+
+            if (sorted.length > currentListLimit) {
+                const moreBtn = document.createElement('button');
+                moreBtn.className = 'w-full py-2.5 rounded-xl bg-azulejo-100 hover:bg-azulejo-200 text-azulejo-900 font-bold text-xs transition';
+                moreBtn.textContent = `Mostrar mais monumentos (${(sorted.length - currentListLimit).toLocaleString('pt-PT')} restantes)`;
+                moreBtn.onclick = () => {
+                    currentListLimit += 100;
+                    renderVirtualList(false);
+                };
+                fragment.appendChild(moreBtn);
+            }
+
+            container.appendChild(fragment);
+        }
+
+        function viewAlminhaFromList(id) {
+            const target = alminhas.find(a => a.id === id);
+            if (!target) return;
+            closeListModal();
+            map.flyTo([target.lat, target.lng], 18, { duration: 0.9 });
+            setTimeout(() => {
+                L.popup()
+                    .setLatLng([target.lat, target.lng])
+                    .setContent(buildPopupHTML(target, target.currentDistance || 0))
+                    .openOn(map);
+            }, 650);
+        }
+
+        /******************************************************************
+         * 12. IMPORTAÇÃO DE FICHEIROS LOCAIS CSV OU GEOJSON
+         ******************************************************************/
+        function triggerImportFile() {
+            const input = document.getElementById('importFileInput');
+            if (input) input.click();
+        }
+
+        function handleFileImport(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function (e) {
+                const content = e.target.result;
+                if (file.name.endsWith('.json') || file.name.endsWith('.geojson')) {
+                    try {
+                        const data = JSON.parse(content);
+                        const features = data.features || (Array.isArray(data) ? data : []);
+                        const imported = [];
+                        features.forEach((item, idx) => {
+                            let lat, lng, name, region, desc, cat;
+                            if (item.geometry && item.geometry.coordinates) {
+                                lng = parseFloat(item.geometry.coordinates[0]);
+                                lat = parseFloat(item.geometry.coordinates[1]);
+                                const props = item.properties || {};
+                                name = props.name || props.nome || props.Designacao || `Monumento #${idx + 1}`;
+                                cat = normalizeCategory(props.tipo || props.categoria || props.type);
+                                region = props.concelho || props.region || props.freguesia || 'Portugal';
+                                desc = props.description || props.descricao || '';
+                            } else {
+                                lat = parseFloat(item.lat || item.latitude);
+                                lng = parseFloat(item.lng || item.lon || item.longitude);
+                                name = item.name || item.nome || `Monumento #${idx + 1}`;
+                                cat = normalizeCategory(item.tipo || item.category);
+                                region = item.region || item.concelho || 'Portugal';
+                                desc = item.description || item.descricao || '';
+                            }
+                            if (!isNaN(lat) && !isNaN(lng)) {
+                                imported.push({
+                                    id: `geojson-${idx}`,
+                                    name,
+                                    category: cat,
+                                    region,
+                                    era: '',
+                                    lat,
+                                    lng,
+                                    description: desc
+                                });
+                            }
+                        });
+                        if (imported.length > 0) {
+                            alminhas = imported;
+                            saveDatasetToCache(alminhas);
+                            applyCategoryAndRebuildClusters();
+                            updateAllDistancesAndUI(false);
+                            closeSheetsModal();
+                            showToast(`${imported.length.toLocaleString('pt-PT')} monumentos GeoJSON importados!`);
+                        }
+                    } catch (err) {
+                        showToast("Erro ao ler o ficheiro JSON/GeoJSON.");
+                    }
+                } else {
+                    // Usa o mesmo motor PapaParse + Auto-Deteção de Colunas do Google Sheets
+                    parseCsvTextAndLoadMonuments(content, false);
+                }
+                event.target.value = '';
+            };
+            reader.readAsText(file);
+        }
+
+        /******************************************************************
+         * 13. UTILITÁRIOS DE INTERFACE
+         ******************************************************************/
+        let toastTimer = null;
+        function showToast(msg) {
+            const toast = document.getElementById('toastMessage');
+            document.getElementById('toastText').textContent = msg;
+            toast.classList.remove('hidden');
+            if (toastTimer) clearTimeout(toastTimer);
+            toastTimer = setTimeout(() => {
+                toast.classList.add('hidden');
+            }, 3400);
+        }
     </script>
 </body>
 </html>
