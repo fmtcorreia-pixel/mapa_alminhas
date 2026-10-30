@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mapa Interativo de Distrito - PRP</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body, html {
+            width: 100%;
+            height: 100%;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+            background: #e9ecef;
+            overflow: hidden;
+        }
+        #map {
+            width: 100%;
+            height: 100vh;
+            background: #e5e8eb;
+        }
+        /* Nomes dos concelhos exatamente como na imagem original */
+        .label-concelho {
+            background: transparent !important;
+            border: none !important;
+            box-shadow: none !important;
+            font-size: 9.5px;
+            font-weight: 700;
+            color: #3b423e;
+            text-transform: uppercase;
+            text-align: center;
+            text-shadow: 
+                -1.2px -1.2px 0 rgba(255,255,255,0.9),  
+                 1.2px -1.2px 0 rgba(255,255,255,0.9),
+                -1.2px  1.2px 0 rgba(255,255,255,0.9),
+                 1.2px  1.2px 0 rgba(255,255,255,0.9);
+            pointer-events: none;
+            white-space: nowrap;
+        }
+        #status {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(255,255,255,0.92);
+            padding: 10px 16px;
+            border-radius: 8px;
+            font-size: 13px;
+            color: #2c3e50;
+            z-index: 1000;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.12);
+        }
+    </style>
+</head>
+<body>
+
+    <div id="status">A carregar mapa do distrito...</div>
+    <div id="map"></div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script>
+        // Lê o distrito a partir do endereço (ex: distrito.html?d=Aveiro)
+        const params = new URLSearchParams(window.location.search);
+        const DISTRITO_ALVO = params.get('d') || params.get('distrito') || "Aveiro";
+
+        const URL_MAPA_CONCELHO = "https://fmtcorreia-pixel.github.io/mapa_alminhas/?concelho=";
+        const CSV_DISTRITO_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSdIHTs9OSFutV7_VVJftFnusa-PFXrFRlklASBc1kmqbjbJDRgBccUJuiYwhLHPGEJW-fli0PY8Exw/pub?gid=1728241245&single=true&output=csv";
+
+        const map = L.map('map', {
+            zoomControl: false,
+            attributionControl: false,
+            dragging: true,
+            scrollWheelZoom: false,
+            doubleClickZoom: false,
+            boxZoom: false,
+            zoomSnap: 0.1
+        });
+
+        // Fundo cartográfico idêntico à imagem original (rios, estradas suaves e costa)
+        L.tileLayer('https://{s}.basemaps.cartocdn.com/light_nolabels/{z}/{x}/{y}{r}.png', {
+            maxZoom: 19
+        }).addTo(map);
+
+        function normalizar(str) {
+            return String(str || "")
+                .toLowerCase()
+                .normalize("NFD")
+                .replace(/[\u0300-\u036f]/g, "")
+                .replace(/[-_]/g, " ")
+                .replace(/\s+/g, " ")
+                .trim();
+        }
+
+        // Lista completa dos 19 concelhos de Aveiro (garante que nenhum falha mesmo se o GeoJSON não trouxer campo Distrito)
+        const MAPA_DISTRITOS = {
+            "aveiro": [
+                "Águeda", "Albergaria-a-Velha", "Anadia", "Arouca", "Aveiro",
+                "Castelo de Paiva", "Espinho", "Estarreja", "Ílhavo", "Mealhada",
+                "Murtosa", "Oliveira de Azeméis", "Oliveira do Bairro", "Ovar",
+                "Santa Maria da Feira", "São João da Madeira", "Sever do Vouga",
+                "Vagos", "Vale de Cambra"
+            ]
+        };
+
+        // Concelhos que aparecem a verde mais escuro por defeito em Aveiro
+        const ATIVOS_DEFEITO = [
+            "Arouca", "Castelo de Paiva", "Espinho", "Oliveira de Azeméis",
+            "Ovar", "Santa Maria da Feira", "São João da Madeira",
+            "Sever do Vouga", "Vale de Cambra"
+        ].map(normalizar);
+
+        const FONTES_GEOJSON = [
+            "https://cdn.jsdelivr.net/gh/dssg-pt/covid19pt-data@master/extra/mapas/concelhos.geojson",
+            "https://raw.githubusercontent.com/dssg-pt/covid19pt-data/master/extra/mapas/concelhos.geojson",
+            "https://raw.githubusercontent.com/codeforamerica/click_that_hood/master/public/data/portugal.geojson"
+        ];
+
+        async function obterGeoJSON() {
+            for (const url of FONTES_GEOJSON) {
+                try {
+                    const r = await fetch(url);
+                    if (r.ok) return await r.json();
+                } catch (e) {}
+            }
+            return null;
+        }
+
+        function obterConcelhosComRegistos() {
+            return new Promise(resolve => {
+                const ativos = new Set(ATIVOS_DEFEITO);
+                Papa.parse(CSV_DISTRITO_URL, {
+                    download: true,
+                    header: false,
+                    skipEmptyLines: true,
+                    complete: function(res) {
+                        if (res && res.data) {
+                            for (let i = 1; i < res.data.length; i++) {
+                                const conc = normalizar(res.data[i][3]);
+                                if (conc) ativos.add(conc);
+                            }
+                        }
+                        resolve(ativos);
+                    },
+                    error: function() { resolve(ativos); }
+                });
+            });
+        }
+
+        function nomeConcelho(p) {
+            return p.Concelho || p.CONCELHO || p.Municipio || p.NAME_2 || p.name || "";
+        }
+
+        function nomeDistrito(p) {
+            return p.Distrito || p.DISTRITO || p.NAME_1 || p.Ilha || "";
+        }
+
+        Promise.all([obterGeoJSON(), obterConcelhosComRegistos()]).then(([geojson, concelhosAtivos]) => {
+            const statusEl = document.getElementById('status');
+            if (!geojson) {
+                statusEl.textContent = "Erro ao carregar cartografia.";
+                return;
+            }
+
+            const distNorm = normalizar(DISTRITO_ALVO);
+            const listaFallback = (MAPA_DISTRITOS[distNorm] || []).map(normalizar);
+
+            const features = geojson.features.filter(f => {
+                const d = normalizar(nomeDistrito(f.properties));
+                const c = normalizar(nomeConcelho(f.properties));
+                if (d) return d === distNorm;
+                return listaFallback.includes(c);
+            });
+
+            if (features.length === 0) {
+                statusEl.textContent = "Distrito não encontrado: " + DISTRITO_ALVO;
+                return;
+            }
+
+            statusEl.style.display = 'none';
+
+            function estiloPadrao(feature) {
+                const nome = nomeConcelho(feature.properties);
+                const isAtivo = concelhosAtivos.has(normalizar(nome));
+                return {
+                    fillColor: isAtivo ? "#9ecba3" : "#dcece0",
+                    weight: 1.3,
+                    opacity: 1,
+                    color: "#768279",
+                    fillOpacity: 0.82
+                };
+            }
+
+            const camada = L.geoJSON({ type: "FeatureCollection", features: features }, {
+                style: estiloPadrao,
+                onEachFeature: function(feature, layer) {
+                    const nome = nomeConcelho(feature.properties);
+
+                    layer.bindTooltip(nome, {
+                        permanent: true,
+                        direction: "center",
+                        className: "label-concelho"
+                    });
+
+                    layer.on('mouseover', function(e) {
+                        const l = e.target;
+                        l.setStyle({
+                            fillColor: "#58a665",
+                            weight: 2.2,
+                            color: "#2c3e50",
+                            fillOpacity: 0.95
+                        });
+                        l.bringToFront();
+                        document.getElementById('map').style.cursor = 'pointer';
+                    });
+
+                    layer.on('mouseout', function(e) {
+                        camada.resetStyle(e.target);
+                        document.getElementById('map').style.cursor = 'default';
+                    });
+
+                    layer.on('click', function() {
+                        window.open(URL_MAPA_CONCELHO + encodeURIComponent(nome), '_blank');
+                    });
+                }
+            }).addTo(map);
+
+            map.fitBounds(camada.getBounds(), { padding: [18, 18] });
+            window.addEventListener('resize', () => {
+                map.fitBounds(camada.getBounds(), { padding: [18, 18] });
+            });
+        });
+    </script>
+</body>
+</html>
