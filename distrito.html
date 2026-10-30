@@ -22,16 +22,16 @@
         /* Caixa de Aviso personalizada (Popup de alerta) */
         #modal-aviso {
             position: fixed;
-            top: 20px;
+            top: 15px;
             left: 50%;
-            transform: translateX(-50%) translateY(-60px);
+            transform: translateX(-50%) translateY(-50px);
             background: #2c3e50;
             color: white;
-            padding: 10px 20px;
-            border-radius: 8px;
-            font-size: 13px;
+            padding: 8px 16px;
+            border-radius: 6px;
+            font-size: 12px;
             font-weight: 500;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.25);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
             z-index: 9999;
             opacity: 0;
             transition: all 0.3s ease;
@@ -83,7 +83,7 @@
                 .trim();
         }
 
-        // Lista completa dos concelhos do distrito de Aveiro com respetivas coordenadas
+        // Concelhos do Distrito de Aveiro
         const CONCELHOS_AVEIRO = [
             { nome: "Águeda", coords: [40.575, -8.447] },
             { nome: "Albergaria-a-Velha", coords: [40.704, -8.483] },
@@ -111,12 +111,11 @@
             modal.classList.add('mostrar');
             setTimeout(() => {
                 modal.classList.remove('mostrar');
-            }, 2500);
+            }, 2300);
         }
 
         function obterConcelhosComRegistos() {
             return new Promise(resolve => {
-                // Concelhos que têm mapas válidos atualmente
                 const ativos = new Set([
                     "povoa de varzim", "vale de cambra"
                 ]);
@@ -144,26 +143,25 @@
             CONCELHOS_AVEIRO.forEach(c => {
                 const isAtivo = concelhosAtivos.has(normalizar(c.nome));
                 
-                // 1. Cor mais escura para os que têm mapa / 2. Cor mais clara para os que não têm
-                const corFundo = isAtivo ? "#1b5e20" : "#a5d6a7"; // Verde escuro vs Verde claro suave
-                const corTexto = isAtivo ? "#ffffff" : "#1b5e20";
-                const pesoBorda = isAtivo ? "2px solid #ffffff" : "1px dashed #2e7d32";
+                // Cores ajustadas: Verde mais escuro para os ativos, Verde claro suave para os restantes
+                const corFundo = isAtivo ? "#1b5e20" : "#c8e6c9"; 
+                const corTexto = isAtivo ? "#ffffff" : "#2e7d32";
+                const pesoBorda = isAtivo ? "1.5px solid #ffffff" : "1px solid #81c784";
 
+                // Tamanho compacto para evitar sobreposições
                 const icone = L.divIcon({
                     className: 'custom-concelho-pin',
-                    html: `<div style="background-color: ${corFundo}; color: ${corTexto}; padding: 6px 12px; border-radius: 20px; font-size: 11px; font-weight: bold; box-shadow: 0 3px 8px rgba(0,0,0,0.25); border: ${pesoBorda}; white-space: nowrap; text-align: center; cursor: pointer;">${c.nome}</div>`,
-                    iconSize: [120, 30],
-                    iconAnchor: [60, 15]
+                    html: `<div style="background-color: ${corFundo}; color: ${corTexto}; padding: 3px 8px; border-radius: 12px; font-size: 9.5px; font-weight: bold; box-shadow: 0 2px 5px rgba(0,0,0,0.2); border: ${pesoBorda}; white-space: nowrap; text-align: center; cursor: pointer;">${c.nome}</div>`,
+                    iconSize: [95, 22],
+                    iconAnchor: [47, 11]
                 });
 
                 const marker = L.marker(c.coords, { icon: icone }).addTo(map);
 
                 marker.on('click', function() {
                     if (isAtivo) {
-                        // Abre o mapa do concelho
                         window.open(URL_MAPA_CONCELHO + encodeURIComponent(c.nome), '_blank');
                     } else {
-                        // 3. Mostra a mensagem personalizada se não tiver mapa
                         mostrarAviso();
                     }
                 });
