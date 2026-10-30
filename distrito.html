@@ -20,12 +20,11 @@
             height: 100vh;
             background: #e5e8eb;
         }
-        /* Nomes dos concelhos exatamente como na imagem original */
         .label-concelho {
             background: transparent !important;
             border: none !important;
             box-shadow: none !important;
-            font-size: 9.5px;
+            font-size: 9px;
             font-weight: 700;
             color: #3b423e;
             text-transform: uppercase;
@@ -55,12 +54,11 @@
 </head>
 <body>
 
-    <div id="status">A carregar mapa do distrito...</div>
+    <div id="status">A carregar concelhos do distrito...</div>
     <div id="map"></div>
 
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script>
-        // Lê o distrito a partir do endereço (ex: distrito.html?d=Aveiro)
         const params = new URLSearchParams(window.location.search);
         const DISTRITO_ALVO = params.get('d') || params.get('distrito') || "Aveiro";
 
@@ -77,9 +75,9 @@
             zoomSnap: 0.1
         });
 
-        // Fundo cartográfico idêntico à imagem original (rios, estradas suaves e costa)
-        L.tileLayer('https://{s}.basemaps.cartocdn.com/light_nolabels/{z}/{x}/{y}{r}.png', {
-            maxZoom: 19
+        // Camada de fundo limpa e gratuita (Esri Light Gray Canvas - sem marcas de água)
+        L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}', {
+            maxZoom: 16
         }).addTo(map);
 
         function normalizar(str) {
@@ -92,7 +90,6 @@
                 .trim();
         }
 
-        // Lista completa dos 19 concelhos de Aveiro (garante que nenhum falha mesmo se o GeoJSON não trouxer campo Distrito)
         const MAPA_DISTRITOS = {
             "aveiro": [
                 "Águeda", "Albergaria-a-Velha", "Anadia", "Arouca", "Aveiro",
@@ -100,27 +97,54 @@
                 "Murtosa", "Oliveira de Azeméis", "Oliveira do Bairro", "Ovar",
                 "Santa Maria da Feira", "São João da Madeira", "Sever do Vouga",
                 "Vagos", "Vale de Cambra"
+            ],
+            "porto": [
+                "Amarante", "Baião", "Felgueiras", "Gondomar", "Lousada", "Maia",
+                "Marco de Canaveses", "Matosinhos", "Paços de Ferreira", "Paredes",
+                "Penafiel", "Porto", "Póvoa de Varzim", "Santo Tirso", "Trofa",
+                "Valongo", "Vila do Conde", "Vila Nova de Gaia"
+            ],
+            "braga": [
+                "Amares", "Barcelos", "Braga", "Cabeceiras de Basto", "Celorico de Basto",
+                "Esposende", "Fafe", "Guimarães", "Póvoa de Lanhoso", "Terras de Bouro",
+                "Vieira do Minho", "Vila Nova de Famalicão", "Vila Verde", "Vizela"
+            ],
+            "viseu": [
+                "Armamar", "Carregal do Sal", "Castro Daire", "Cinfães", "Lamego",
+                "Mangualde", "Moimenta da Beira", "Mortágua", "Nelas", "Oliveira de Frades",
+                "Penalva do Castelo", "Penedono", "Resende", "Santa Comba Dão",
+                "São João da Pesqueira", "São Pedro do Sul", "Sátão", "Sernancelhe",
+                "Tabuaço", "Tarouca", "Tondela", "Vila Nova de Paiva", "Viseu", "Vouzela"
+            ],
+            "viana do castelo": [
+                "Arcos de Valdevez", "Caminha", "Melgaço", "Monção", "Paredes de Coura",
+                "Ponte da Barca", "Ponte de Lima", "Valença", "Viana do Castelo", "Vila Nova de Cerveira"
             ]
         };
 
-        // Concelhos que aparecem a verde mais escuro por defeito em Aveiro
         const ATIVOS_DEFEITO = [
             "Arouca", "Castelo de Paiva", "Espinho", "Oliveira de Azeméis",
             "Ovar", "Santa Maria da Feira", "São João da Madeira",
             "Sever do Vouga", "Vale de Cambra"
         ].map(normalizar);
 
-        const FONTES_GEOJSON = [
-            "https://cdn.jsdelivr.net/gh/dssg-pt/covid19pt-data@master/extra/mapas/concelhos.geojson",
-            "https://raw.githubusercontent.com/dssg-pt/covid19pt-data/master/extra/mapas/concelhos.geojson",
-            "https://raw.githubusercontent.com/codeforamerica/click_that_hood/master/public/data/portugal.geojson"
+        // Repositórios apenas com divisão por CONCELHOS (Municípios)
+        const FONTES_CONCELHOS_GEOJSON = [
+            "https://raw.githubusercontent.com/nmota/caop_geojson/master/concelhos.geojson",
+            "https://cdn.jsdelivr.net/gh/nmota/caop_geojson@master/concelhos.geojson",
+            "https://raw.githubusercontent.com/forgotten/portugal-geojson/master/concelhos.geojson",
+            "https://raw.githubusercontent.com/deldersveld/topojson/master/countries/portugal/portugal-municipalities.json"
         ];
 
-        async function obterGeoJSON() {
-            for (const url of FONTES_GEOJSON) {
+        async function obterGeoJSONConcelhos() {
+            for (const url of FONTES_CONCELHOS_GEOJSON) {
                 try {
                     const r = await fetch(url);
-                    if (r.ok) return await r.json();
+                    if (!r.ok) continue;
+                    const data = await r.json();
+                    if (data && data.features && data.features.length > 50) {
+                        return data;
+                    }
                 } catch (e) {}
             }
             return null;
@@ -148,28 +172,30 @@
         }
 
         function nomeConcelho(p) {
-            return p.Concelho || p.CONCELHO || p.Municipio || p.NAME_2 || p.name || "";
+            return p.Concelho || p.CONCELHO || p.concelho || p.Municipio || p.MUNICIPIO || p.NAME_2 || p.name || "";
         }
 
         function nomeDistrito(p) {
-            return p.Distrito || p.DISTRITO || p.NAME_1 || p.Ilha || "";
+            return p.Distrito || p.DISTRITO || p.distrito || p.NAME_1 || p.Ilha || "";
         }
 
-        Promise.all([obterGeoJSON(), obterConcelhosComRegistos()]).then(([geojson, concelhosAtivos]) => {
+        Promise.all([obterGeoJSONConcelhos(), obterConcelhosComRegistos()]).then(([geojson, concelhosAtivos]) => {
             const statusEl = document.getElementById('status');
             if (!geojson) {
-                statusEl.textContent = "Erro ao carregar cartografia.";
+                statusEl.textContent = "Erro ao carregar limites dos concelhos.";
                 return;
             }
 
             const distNorm = normalizar(DISTRITO_ALVO);
-            const listaFallback = (MAPA_DISTRITOS[distNorm] || []).map(normalizar);
+            const listaConcelhosDoDistrito = (MAPA_DISTRITOS[distNorm] || []).map(normalizar);
 
             const features = geojson.features.filter(f => {
-                const d = normalizar(nomeDistrito(f.properties));
                 const c = normalizar(nomeConcelho(f.properties));
-                if (d) return d === distNorm;
-                return listaFallback.includes(c);
+                const d = normalizar(nomeDistrito(f.properties));
+                if (listaConcelhosDoDistrito.length > 0 && listaConcelhosDoDistrito.includes(c)) {
+                    return true;
+                }
+                return d === distNorm;
             });
 
             if (features.length === 0) {
@@ -183,11 +209,11 @@
                 const nome = nomeConcelho(feature.properties);
                 const isAtivo = concelhosAtivos.has(normalizar(nome));
                 return {
-                    fillColor: isAtivo ? "#9ecba3" : "#dcece0",
+                    fillColor: isAtivo ? "#8ec396" : "#d8ecd9",
                     weight: 1.3,
                     opacity: 1,
-                    color: "#768279",
-                    fillOpacity: 0.82
+                    color: "#6b7c70",
+                    fillOpacity: 0.85
                 };
             }
 
