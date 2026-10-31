@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Mapa Interativo por Distrito - PRP</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; }
         body, html {
@@ -17,6 +18,23 @@
         #map {
             width: 100%;
             height: 100vh;
+        }
+        .label-concelho {
+            background: transparent !important;
+            border: none !important;
+            box-shadow: none !important;
+            font-size: 9.5px;
+            font-weight: 700;
+            color: #1f2d24;
+            text-transform: uppercase;
+            text-align: center;
+            text-shadow: 
+                -1.2px -1.2px 0 rgba(255,255,255,0.92),  
+                 1.2px -1.2px 0 rgba(255,255,255,0.92),
+                -1.2px  1.2px 0 rgba(255,255,255,0.92),
+                 1.2px  1.2px 0 rgba(255,255,255,0.92);
+            pointer-events: none;
+            white-space: nowrap;
         }
         #modal-aviso {
             position: fixed;
@@ -53,6 +71,7 @@
         const DISTRITO_ALVO = (params.get('d') || params.get('distrito') || "Aveiro").trim().toLowerCase();
 
         const URL_MAPA_CONCELHO = "https://fmtcorreia-pixel.github.io/mapa_alminhas/?concelho=";
+        const CSV_DISTRITO_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSdIHTs9OSFutV7_VVJftFnusa-PFXrFRlklASBc1kmqbjbJDRgBccUJuiYwhLHPGEJW-fli0PY8Exw/pub?gid=1728241245&single=true&output=csv";
 
         const map = L.map('map', {
             zoomControl: false,
@@ -64,10 +83,10 @@
             zoomSnap: 0.1
         });
 
-        // Fundo do Google Maps
+        // Fundo limpo e suave
         L.tileLayer('https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}', {
             maxZoom: 20,
-            opacity: 0.75
+            opacity: 0.7
         }).addTo(map);
 
         function normalizar(str) {
@@ -86,77 +105,87 @@
             setTimeout(() => modal.classList.remove('mostrar'), 2400);
         }
 
-        // Base de concelhos por distrito com coordenadas e estado (true = tem mapa, false = sem mapa)
-        const DISTRITOS_DADOS = {
+        // Base de coordenadas centrais dos concelhos por distrito para funcionamento imediato
+        const DADOS_DISTRIBUTIVOS = {
             "aveiro": [
-                { nome: "Águeda", ativo: false, coords: [40.575, -8.447] },
-                { nome: "Albergaria-a-Velha", ativo: false, coords: [40.704, -8.483] },
-                { nome: "Anadia", ativo: false, coords: [40.441, -8.435] },
-                { nome: "Arouca", ativo: true, coords: [40.927, -8.243] },
-                { nome: "Aveiro", ativo: false, coords: [40.640, -8.653] },
-                { nome: "Castelo de Paiva", ativo: true, coords: [41.047, -8.292] },
-                { nome: "Espinho", ativo: true, coords: [41.004, -8.641] },
-                { nome: "Estarreja", ativo: false, coords: [40.758, -8.571] },
-                { nome: "Ílhavo", ativo: false, coords: [40.601, -8.667] },
-                { nome: "Mealhada", ativo: false, coords: [40.378, -8.448] },
-                { nome: "Murtosa", ativo: false, coords: [40.738, -8.632] },
-                { nome: "Oliveira de Azeméis", ativo: true, coords: [40.840, -8.477] },
-                { nome: "Oliveira do Bairro", ativo: false, coords: [40.510, -8.488] },
-                { nome: "Ovar", ativo: true, coords: [40.864, -8.626] },
-                { nome: "Santa Maria da Feira", ativo: true, coords: [40.925, -8.545] },
-                { nome: "São João da Madeira", ativo: true, coords: [40.903, -8.490] },
-                { nome: "Sever do Vouga", ativo: true, coords: [40.735, -8.371] },
-                { nome: "Vagos", ativo: false, coords: [40.547, -8.682] },
-                { nome: "Vale de Cambra", ativo: true, coords: [40.848, -8.394] }
+                { nome: "Águeda", coords: [40.575, -8.447] }, { nome: "Albergaria-a-Velha", coords: [40.704, -8.483] },
+                { nome: "Anadia", coords: [40.441, -8.435] }, { nome: "Arouca", coords: [40.927, -8.243] },
+                { nome: "Aveiro", coords: [40.640, -8.653] }, { nome: "Castelo de Paiva", coords: [41.047, -8.292] },
+                { nome: "Espinho", coords: [41.004, -8.641] }, { nome: "Estarreja", coords: [40.758, -8.571] },
+                { nome: "Ílhavo", coords: [40.601, -8.667] }, { nome: "Mealhada", coords: [40.378, -8.448] },
+                { nome: "Murtosa", coords: [40.738, -8.632] }, { nome: "Oliveira de Azeméis", coords: [40.840, -8.477] },
+                { nome: "Oliveira do Bairro", coords: [40.510, -8.488] }, { nome: "Ovar", coords: [40.864, -8.626] },
+                { nome: "Santa Maria da Feira", coords: [40.925, -8.545] }, { nome: "São João da Madeira", coords: [40.903, -8.490] },
+                { nome: "Sever do Vouga", coords: [40.735, -8.371] }, { nome: "Vagos", coords: [40.547, -8.682] },
+                { nome: "Vale de Cambra", coords: [40.848, -8.394] }
             ],
             "bragança": [
-                { nome: "Alfândega da Fé", ativo: false, coords: [41.341, -6.963] },
-                { nome: "Bragança", ativo: false, coords: [41.806, -6.757] },
-                { nome: "Carrazeda de Ansiães", ativo: false, coords: [41.243, -7.303] },
-                { nome: "Freixo de Espada à Cinta", ativo: false, coords: [41.090, -6.804] },
-                { nome: "Macedo de Cavaleiros", ativo: false, coords: [41.538, -6.957] },
-                { nome: "Miranda do Douro", ativo: false, coords: [41.493, -6.273] },
-                { nome: "Mirandela", ativo: false, coords: [41.488, -7.186] },
-                { nome: "Mogadouro", ativo: false, coords: [41.343, -6.711] },
-                { nome: "Torre de Moncorvo", ativo: false, coords: [41.175, -7.051] },
-                { nome: "Vila Flor", ativo: false, coords: [41.308, -7.143] },
-                { nome: "Vimioso", ativo: false, coords: [41.583, -6.530] },
-                { nome: "Vinhais", ativo: false, coords: [41.837, -6.963] }
+                { nome: "Alfândega da Fé", coords: [41.341, -6.963] }, { nome: "Bragança", coords: [41.806, -6.757] },
+                { nome: "Carrazeda de Ansiães", coords: [41.243, -7.303] }, { nome: "Freixo de Espada à Cinta", coords: [41.090, -6.804] },
+                { nome: "Macedo de Cavaleiros", coords: [41.538, -6.957] }, { nome: "Miranda do Douro", coords: [41.493, -6.273] },
+                { nome: "Mirandela", coords: [41.488, -7.186] }, { nome: "Mogadouro", coords: [41.343, -6.711] },
+                { nome: "Torre de Moncorvo", coords: [41.175, -7.051] }, { nome: "Vila Flor", coords: [41.308, -7.143] },
+                { nome: "Vimioso", coords: [41.583, -6.530] }, { nome: "Vinhais", coords: [41.837, -6.963] }
             ]
         };
 
-        const concelhosDistrito = DISTRITOS_DADOS[DISTRITO_ALVO] || DISTRITOS_DADOS["aveiro"];
-        const grupoCoords = [];
-
-        concelhosDistrito.forEach(c => {
-            // Cor mais escura para os com mapa, cor mais clara para os restantes
-            const corFundo = c.ativo ? "#1b5e20" : "#c8e6c9";
-            const corTexto = c.ativo ? "#ffffff" : "#1b5e20";
-            const borda = c.ativo ? "1.5px solid #ffffff" : "1px solid #81c784";
-
-            const icone = L.divIcon({
-                className: 'custom-pin',
-                html: `<div style="background-color: ${corFundo}; color: ${corTexto}; padding: 4px 10px; border-radius: 14px; font-size: 9.5px; font-weight: bold; box-shadow: 0 2px 6px rgba(0,0,0,0.25); border: ${borda}; white-space: nowrap; text-align: center; cursor: pointer;">${c.nome}</div>`,
-                iconSize: [110, 24],
-                iconAnchor: [55, 12]
+        function obterConcelhosComMapa() {
+            return new Promise(resolve => {
+                const ativos = new Set(["povoa de varzim", "vale de cambra"]);
+                Papa.parse(CSV_DISTRITO_URL, {
+                    download: true,
+                    header: false,
+                    skipEmptyLines: true,
+                    complete: function(res) {
+                        if (res && res.data) {
+                            for (let i = 1; i < res.data.length; i++) {
+                                const c = normalizar(res.data[i][3]);
+                                if (c) ativos.add(c);
+                            }
+                        }
+                        resolve(ativos);
+                    },
+                    error: function() { resolve(ativos); }
+                });
             });
-
-            const marker = L.marker(c.coords, { icon: icone }).addTo(map);
-
-            marker.on('click', function() {
-                if (c.ativo) {
-                    window.open(URL_MAPA_CONCELHO + encodeURIComponent(c.nome), '_blank');
-                } else {
-                    mostrarAviso();
-                }
-            });
-
-            grupoCoords.push(c.coords);
-        });
-
-        if (grupoCoords.length > 0) {
-            map.fitBounds(L.latLngBounds(grupoCoords), { padding: [40, 40] });
         }
+
+        obterConcelhosComMapa().then(concelhosAtivos => {
+            const concelhosDistrito = DADOS_DISTRIBUTIVOS[DISTRITO_ALVO] || DADOS_DISTRIBUTIVOS["aveiro"];
+            const grupoCoords = [];
+
+            concelhosDistrito.forEach(c => {
+                const temMapa = concelhosAtivos.has(normalizar(c.nome));
+                
+                // Cores solicitadas: Verde mais escuro para os que têm mapa, Verde claro para os restantes
+                const corFundo = temMapa ? "#1b5e20" : "#c8e6c9";
+                const corTexto = temMapa ? "#ffffff" : "#1b5e20";
+                const borda = temMapa ? "1.5px solid #ffffff" : "1px solid #81c784";
+
+                const icone = L.divIcon({
+                    className: 'custom-pin',
+                    html: `<div style="background-color: ${corFundo}; color: ${corTexto}; padding: 4px 10px; border-radius: 14px; font-size: 9.5px; font-weight: bold; box-shadow: 0 2px 6px rgba(0,0,0,0.25); border: ${borda}; white-space: nowrap; text-align: center; cursor: pointer;">${c.nome}</div>`,
+                    iconSize: [110, 24],
+                    iconAnchor: [55, 12]
+                });
+
+                const marker = L.marker(c.coords, { icon: icone }).addTo(map);
+
+                marker.on('click', function() {
+                    if (temMapa) {
+                        window.open(URL_MAPA_CONCELHO + encodeURIComponent(c.nome), '_blank');
+                    } else {
+                        mostrarAviso();
+                    }
+                });
+
+                grupoCoords.push(c.coords);
+            });
+
+            if (grupoCoords.length > 0) {
+                map.fitBounds(L.latLngBounds(grupoCoords), { padding: [40, 40] });
+            }
+        });
     </script>
 </body>
 </html>
