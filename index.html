@@ -19,45 +19,28 @@
             width: 100%;
             height: 100vh;
         }
-
-        /* Barra de Controlo Superior (Filtro e Pesquisa) */
-        #painel-controlo {
-            position: absolute;
-            top: 16px;
-            left: 50%;
-            transform: translateX(-50%);
-            display: flex;
-            gap: 10px;
-            z-index: 1000;
-            background: rgba(255, 255, 255, 0.95);
-            padding: 8px 12px;
-            border-radius: 8px;
-            box-shadow: 0 4px 16px rgba(0,0,0,0.15);
-            max-width: 95%;
-            width: 450px;
-        }
-        #painel-controlo select, 
-        #painel-controlo input {
-            flex: 1;
-            padding: 7px 10px;
-            border: 1px solid #ccc;
-            border-radius: 5px;
-            font-size: 12.5px;
-            outline: none;
-            background: #fff;
+        .label-concelho {
+            background: transparent !important;
+            border: none !important;
+            box-shadow: none !important;
+            font-size: 9.5px;
+            font-weight: 700;
             color: #1f2d24;
+            text-transform: uppercase;
+            text-align: center;
+            text-shadow: 
+                -1.2px -1.2px 0 rgba(255,255,255,0.92),  
+                 1.2px -1.2px 0 rgba(255,255,255,0.92),
+                -1.2px  1.2px 0 rgba(255,255,255,0.92),
+                 1.2px  1.2px 0 rgba(255,255,255,0.92);
+            pointer-events: none;
+            white-space: nowrap;
         }
-        #painel-controlo select:focus, 
-        #painel-controlo input:focus {
-            border-color: #1b5e20;
-            box-shadow: 0 0 0 2px rgba(27, 94, 32, 0.15);
-        }
-
         #modal-aviso {
             position: fixed;
-            top: 75px;
+            top: 16px;
             left: 50%;
-            transform: translateX(-50%) translateY(-20px);
+            transform: translateX(-50%) translateY(-60px);
             background: #2c3e50;
             color: #ffffff;
             padding: 9px 18px;
@@ -79,13 +62,6 @@
 </head>
 <body>
 
-    <div id="painel-controlo">
-        <select id="filtro-concelho">
-            <option value="">Todos os Concelhos</option>
-        </select>
-        <input type="text" id="pesquisa-lugar" placeholder="Pesquisar lugar/concelho...">
-    </div>
-
     <div id="modal-aviso">Ainda não existe mapa para este concelho.</div>
     <div id="map"></div>
 
@@ -101,7 +77,7 @@
             zoomControl: false,
             attributionControl: false,
             dragging: true,
-            scrollWheelZoom: true,
+            scrollWheelZoom: false,
             doubleClickZoom: false,
             boxZoom: false,
             zoomSnap: 0.1
@@ -123,13 +99,13 @@
                 .trim();
         }
 
-        function mostrarAviso(texto = "Ainda não existe mapa para este concelho.") {
+        function mostrarAviso() {
             const modal = document.getElementById('modal-aviso');
-            modal.textContent = texto;
             modal.classList.add('mostrar');
-            setTimeout(() => modal.classList.remove('mostrar'), 2500);
+            setTimeout(() => modal.classList.remove('mostrar'), 2400);
         }
 
+        // Base de coordenadas centrais dos concelhos por distrito para funcionamento imediato
         const DADOS_DISTRIBUTIVOS = {
             "aveiro": [
                 { nome: "Águeda", coords: [40.575, -8.447] }, { nome: "Albergaria-a-Velha", coords: [40.704, -8.483] },
@@ -177,20 +153,11 @@
         obterConcelhosComMapa().then(concelhosAtivos => {
             const concelhosDistrito = DADOS_DISTRIBUTIVOS[DISTRITO_ALVO] || DADOS_DISTRIBUTIVOS["aveiro"];
             const grupoCoords = [];
-            const markersMap = {};
-            const selectConcelho = document.getElementById('filtro-concelho');
-
-            // Popular o menu dropdown de concelhos
-            concelhosDistrito.forEach(c => {
-                const opt = document.createElement('option');
-                opt.value = c.nome;
-                opt.textContent = c.nome;
-                selectConcelho.appendChild(opt);
-            });
 
             concelhosDistrito.forEach(c => {
                 const temMapa = concelhosAtivos.has(normalizar(c.nome));
                 
+                // Cores solicitadas: Verde mais escuro para os que têm mapa, Verde claro para os restantes
                 const corFundo = temMapa ? "#1b5e20" : "#c8e6c9";
                 const corTexto = temMapa ? "#ffffff" : "#1b5e20";
                 const borda = temMapa ? "1.5px solid #ffffff" : "1px solid #81c784";
@@ -208,50 +175,16 @@
                     if (temMapa) {
                         window.open(URL_MAPA_CONCELHO + encodeURIComponent(c.nome), '_blank');
                     } else {
-                        mostrarAviso(`Ainda não existe mapa para ${c.nome}.`);
+                        mostrarAviso();
                     }
                 });
 
-                markersMap[normalizar(c.nome)] = { marker: marker, dados: c, temMapa: temMapa };
                 grupoCoords.push(c.coords);
             });
 
             if (grupoCoords.length > 0) {
-                map.fitBounds(L.latLngBounds(grupoCoords), { padding: [50, 50] });
+                map.fitBounds(L.latLngBounds(grupoCoords), { padding: [40, 40] });
             }
-
-            // Lógica do Filtro por Dropdown de Concelho
-            selectConcelho.addEventListener('change', function() {
-                const selecionado = normalizar(this.value);
-                if (!selecionado) {
-                    map.fitBounds(L.latLngBounds(grupoCoords), { padding: [50, 50] });
-                    return;
-                }
-                const item = markersMap[selecionado];
-                if (item) {
-                    map.setView(item.dados.coords, 12, { animate: true });
-                }
-            });
-
-            // Lógica da Caixa de Pesquisa em Tempo Real
-            const inputPesquisa = document.getElementById('pesquisa-lugar');
-            inputPesquisa.addEventListener('input', function() {
-                const termo = normalizar(this.value);
-                if (!termo) return;
-
-                let encontrado = false;
-                for (let chave in markersMap) {
-                    if (chave.includes(termo)) {
-                        const item = markersMap[chave];
-                        map.setView(item.dados.coords, 12, { animate: true });
-                        encontrado = true;
-                        break;
-                    }
-                }
-                if (!encontrado && termo.length > 2) {
-                    mostrarAviso("Nenhum concelho encontrado com esse nome.");
-                }
-            });
         });
     </script>
 </body>
