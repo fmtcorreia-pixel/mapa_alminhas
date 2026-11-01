@@ -3,189 +3,728 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Mapa Interativo por Distrito - PRP</title>
+    <title>PRP - Património Religioso Popular (Alminhas Digital)</title>
+    
+    <!-- Leaflet CSS -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <!-- Leaflet MarkerCluster CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css" />
+    <!-- PapaParse para ler CSV -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+
     <style>
-        * { box-sizing: border-box; margin: 0; padding: 0; }
-        body, html {
-            width: 100%;
-            height: 100%;
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
-            background: #f4f6f5;
-            overflow: hidden;
+        :root {
+            --primary-color: #2c3e50;
+            --accent-color: #27ae60;
+            --bg-glass: rgba(255, 255, 255, 0.95);
         }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body, html {
+            height: 100%;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            color: #333;
+        }
+
         #map {
             width: 100%;
             height: 100vh;
+            z-index: 1;
         }
-        .label-concelho {
-            background: transparent !important;
-            border: none !important;
-            box-shadow: none !important;
-            font-size: 9.5px;
-            font-weight: 700;
-            color: #1f2d24;
-            text-transform: uppercase;
-            text-align: center;
-            text-shadow: 
-                -1.2px -1.2px 0 rgba(255,255,255,0.92),  
-                 1.2px -1.2px 0 rgba(255,255,255,0.92),
-                -1.2px  1.2px 0 rgba(255,255,255,0.92),
-                 1.2px  1.2px 0 rgba(255,255,255,0.92);
-            pointer-events: none;
-            white-space: nowrap;
+
+        /* Painel de Controlo Superior / Filtros */
+        .control-panel {
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            z-index: 1000;
+            background: var(--bg-glass);
+            padding: 15px;
+            border-radius: 10px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+            width: 320px;
+            max-width: calc(100vw - 30px);
+            backdrop-filter: blur(5px);
         }
-        #modal-aviso {
-            position: fixed;
-            top: 16px;
-            left: 50%;
-            transform: translateX(-50%) translateY(-60px);
-            background: #2c3e50;
-            color: #ffffff;
-            padding: 9px 18px;
+
+        .control-panel h1 {
+            font-size: 15px;
+            color: var(--primary-color);
+            margin-bottom: 5px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .control-panel p.subtitle {
+            font-size: 11px;
+            color: #666;
+            margin-bottom: 12px;
+        }
+
+        .filter-group {
+            margin-bottom: 10px;
+        }
+
+        .filter-group label {
+            display: block;
+            font-size: 12px;
+            font-weight: bold;
+            margin-bottom: 4px;
+            color: #444;
+        }
+
+        .filter-group select {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ccc;
             border-radius: 6px;
-            font-size: 12.5px;
-            font-weight: 600;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.25);
-            z-index: 9999;
-            opacity: 0;
-            transition: all 0.25s ease;
-            pointer-events: none;
-            text-align: center;
+            background: #fff;
+            font-size: 13px;
         }
-        #modal-aviso.mostrar {
-            transform: translateX(-50%) translateY(0);
-            opacity: 1;
+
+        .stats {
+            font-size: 11px;
+            color: #555;
+            margin-top: 10px;
+            border-top: 1px solid #eee;
+            padding-top: 8px;
+            display: flex;
+            justify-content: space-between;
+            font-weight: 600;
+        }
+
+        /* Legenda de Cores */
+        .legend {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-top: 8px;
+            padding-top: 8px;
+            border-top: 1px solid #eee;
+            font-size: 11px;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .legend-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            display: inline-block;
+        }
+
+        /* Ecrã de Carregamento */
+        #loader {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(255, 255, 255, 0.95);
+            z-index: 9999;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            transition: opacity 0.5s ease;
+        }
+
+        .spinner {
+            width: 50px;
+            height: 50px;
+            border: 5px solid #f3f3f3;
+            border-top: 5px solid var(--accent-color);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-bottom: 15px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        #loader h2 {
+            font-size: 18px;
+            color: var(--primary-color);
+            margin-bottom: 5px;
+        }
+
+        #loader p {
+            font-size: 13px;
+            color: #666;
+        }
+
+        /* Estilo personalizado das Janelas Popups */
+        .leaflet-popup-content-wrapper {
+            border-radius: 12px;
+            padding: 0;
+            overflow: hidden;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.3);
+        }
+
+        .leaflet-popup-content {
+            margin: 0;
+            line-height: 1.4;
+            width: 300px !important;
+            max-height: 420px;
+            overflow-y: auto;
+        }
+
+        .popup-header {
+            background: var(--primary-color);
+            color: white;
+            padding: 10px 14px;
+            font-weight: bold;
+            font-size: 13px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .popup-badge {
+            font-size: 10px;
+            padding: 2px 6px;
+            border-radius: 4px;
+            text-transform: uppercase;
+            font-weight: bold;
+        }
+
+        /* Cores de Tipologia para Badges e Marcadores */
+        .badge-alminhas { background: #2980b9; color: white; }
+        .badge-nicho { background: #27ae60; color: white; }
+        .badge-cruz { background: #c0392b; color: white; }
+        .badge-nicho-cruz { background: #8e44ad; color: white; }
+        .badge-outro { background: #7f8c8d; color: white; }
+
+        .popup-body {
+            padding: 12px;
+            font-size: 12px;
+        }
+
+        /* Carrossel de Fotos */
+        .carousel-container {
+            position: relative;
+            width: 100%;
+            height: 180px;
+            background: #1a1a1a;
+            margin-bottom: 10px;
+            border-radius: 6px;
+            overflow: hidden;
+        }
+
+        .carousel-img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            display: none;
+        }
+
+        .carousel-img.active {
+            display: block;
+        }
+
+        .carousel-btn {
+            position: absolute;
+            top: 50%;
+            transform: translateY(-50%);
+            background: rgba(0,0,0,0.5);
+            color: white;
+            border: none;
+            cursor: pointer;
+            padding: 6px 10px;
+            font-size: 12px;
+            border-radius: 4px;
+            z-index: 10;
+        }
+
+        .carousel-btn.prev { left: 5px; }
+        .carousel-btn.next { right: 5px; }
+        
+        .carousel-counter {
+            position: absolute;
+            bottom: 5px;
+            right: 8px;
+            background: rgba(0,0,0,0.6);
+            color: white;
+            font-size: 10px;
+            padding: 2px 5px;
+            border-radius: 3px;
+        }
+
+        .popup-row {
+            margin-bottom: 6px;
+        }
+
+        .popup-row strong {
+            color: #444;
+        }
+
+        .popup-description {
+            font-style: italic;
+            color: #555;
+            background: #f9f9f9;
+            padding: 6px;
+            border-left: 3px solid #ccc;
+            margin: 8px 0;
+            max-height: 90px;
+            overflow-y: auto;
+        }
+
+        .popup-actions {
+            display: flex;
+            gap: 6px;
+            margin-top: 10px;
+        }
+
+        .btn-ficha {
+            flex: 1;
+            text-align: center;
+            background: #e74c3c;
+            color: white !important;
+            text-decoration: none;
+            padding: 8px;
+            border-radius: 6px;
+            font-weight: bold;
+            font-size: 11px;
+            transition: background 0.2s;
+        }
+
+        .btn-ficha:hover {
+            background: #c0392b;
+        }
+
+        .btn-gps {
+            text-align: center;
+            background: #34495e;
+            color: white !important;
+            text-decoration: none;
+            padding: 8px 10px;
+            border-radius: 6px;
+            font-weight: bold;
+            font-size: 11px;
+            transition: background 0.2s;
+        }
+
+        .btn-gps:hover {
+            background: #2c3e50;
+        }
+
+        @media (max-width: 600px) {
+            .control-panel {
+                top: auto;
+                bottom: 15px;
+                right: 10px;
+                left: 10px;
+                width: auto;
+            }
         }
     </style>
 </head>
 <body>
 
-    <div id="modal-aviso">Ainda não existe mapa para este concelho.</div>
+    <div id="loader">
+        <div class="spinner"></div>
+        <h2>A carregar base de dados do PRP...</h2>
+        <p>A sincronizar registos e fotografias da aba DISTRITO (v2.0)</p>
+    </div>
+
+    <div class="control-panel">
+        <h1>🏛️ Alminhas Digital</h1>
+        <p class="subtitle">Património Religioso Popular (v2.0 - Coluna U/V)</p>
+        
+        <div class="filter-group">
+            <label for="select-concelho">Filtrar por Concelho:</label>
+            <select id="select-concelho">
+                <option value="TODOS">Todos os Concelhos</option>
+            </select>
+        </div>
+
+        <div class="filter-group">
+            <label for="select-tipologia">Filtrar por Tipologia:</label>
+            <select id="select-tipologia">
+                <option value="TODOS">Todas as Tipologias</option>
+                <option value="Alminhas">Alminhas</option>
+                <option value="Nicho">Nicho</option>
+                <option value="Cruz">Cruz</option>
+                <option value="Nicho-Cruz">Nicho-Cruz</option>
+            </select>
+        </div>
+
+        <div class="legend">
+            <div class="legend-item"><span class="legend-dot" style="background:#2980b9;"></span> Alminhas</div>
+            <div class="legend-item"><span class="legend-dot" style="background:#27ae60;"></span> Nicho</div>
+            <div class="legend-item"><span class="legend-dot" style="background:#c0392b;"></span> Cruz</div>
+            <div class="legend-item"><span class="legend-dot" style="background:#8e44ad;"></span> Nicho-Cruz</div>
+        </div>
+
+        <div class="stats">
+            <span id="stat-total">A carregar registos...</span>
+            <span id="stat-fotos"></span>
+        </div>
+    </div>
+
     <div id="map"></div>
 
+    <!-- Leaflet & Clustering JS -->
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
+
     <script>
-        const params = new URLSearchParams(window.location.search);
-        const DISTRITO_ALVO = (params.get('d') || params.get('distrito') || "Aveiro").trim().toLowerCase();
+        // ====================================================================
+        // LINK PUBLICADO EM CSV DA ABA DISTRITO DO GOOGLE SHEETS (COM ANTI-CACHE)
+        // ====================================================================
+        const CSV_BASE_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSdIHTs9OSFutV7_VVJftFnusa-PFXrFRlklASBc1kmqbjbJDRgBccUJuiYwhLHPGEJW-fli0PY8Exw/pub?gid=1728241245&single=true&output=csv";
 
-        const URL_MAPA_CONCELHO = "https://fmtcorreia-pixel.github.io/mapa_alminhas/?concelho=";
-        const CSV_DISTRITO_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSdIHTs9OSFutV7_VVJftFnusa-PFXrFRlklASBc1kmqbjbJDRgBccUJuiYwhLHPGEJW-fli0PY8Exw/pub?gid=1728241245&single=true&output=csv";
+        // Extrai o ID do ficheiro da Google Drive e gera o link direto de imagem mais estável
+        function extrairIdDrive(url) {
+            if (!url) return "";
+            let limpo = url.trim();
+            const matchIdParam = limpo.match(/[?&]id=([-\w]{25,})/);
+            if (matchIdParam) return matchIdParam[1];
+            const matchIdPath = limpo.match(/\/d\/([-\w]{25,})/);
+            if (matchIdPath) return matchIdPath[1];
+            const matchGeral = limpo.match(/[-\w]{25,}/);
+            return matchGeral ? matchGeral[0] : "";
+        }
 
+        function normalizarLinkFotoDrive(url) {
+            if (!url) return "";
+            const fileId = extrairIdDrive(url);
+            if (fileId) {
+                return `https://lh3.googleusercontent.com/d/${fileId}=w1000`;
+            }
+            return url.trim();
+        }
+
+        // Inicialização do Mapa centrado em Portugal
         const map = L.map('map', {
-            zoomControl: false,
-            attributionControl: false,
-            dragging: true,
-            scrollWheelZoom: false,
-            doubleClickZoom: false,
-            boxZoom: false,
-            zoomSnap: 0.1
-        });
+            zoomControl: true
+        }).setView([41.15, -8.35], 8);
 
-        // Fundo limpo e suave
-        L.tileLayer('https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}', {
+        // Camadas de Fundo - "Mapa de Ruas (Google)" definido por defeito
+        const googleStreets = L.tileLayer('https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}', {
             maxZoom: 20,
-            opacity: 0.7
+            attribution: '&copy; Google Maps'
         }).addTo(map);
 
-        function normalizar(str) {
-            return String(str || "")
-                .toLowerCase()
-                .normalize("NFD")
-                .replace(/[\u0300-\u036f]/g, "")
-                .replace(/[-_]/g, " ")
-                .replace(/\s+/g, " ")
-                .trim();
+        const googleHybrid = L.tileLayer('https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}', {
+            maxZoom: 20,
+            attribution: '&copy; Google Maps Satellite'
+        });
+
+        const googleTerrain = L.tileLayer('https://mt1.google.com/vt/lyrs=p&x={x}&y={y}&z={z}', {
+            maxZoom: 20,
+            attribution: '&copy; Google Maps Terrain'
+        });
+
+        const satLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+            maxZoom: 19,
+            attribution: 'Tiles &copy; Esri'
+        });
+
+        const baseLayers = {
+            "Mapa de Ruas (Google)": googleStreets,
+            "Satélite com Nomes (Google Híbrido)": googleHybrid,
+            "Mapa de Relevo (Google Terreno)": googleTerrain,
+            "Satélite Puro (ESRI)": satLayer
+        };
+        L.control.layers(baseLayers, null, { position: 'topleft' }).addTo(map);
+
+        // Agrupador de Clusters de Marcadores
+        const markersCluster = L.markerClusterGroup({
+            maxClusterRadius: 45,
+            spiderfyOnMaxZoom: true,
+            showCoverageOnHover: false
+        });
+        map.addLayer(markersCluster);
+
+        // Ícones personalizados por Tipologia
+        function criarIcone(tipologia) {
+            let cor = "#7f8c8d"; // Cinzento por defeito
+            let tipoNorm = (tipologia || "").trim().toLowerCase();
+
+            if (tipoNorm.includes("alminha")) cor = "#2980b9";      // Azul
+            else if (tipoNorm.includes("nicho-cruz")) cor = "#8e44ad"; // Roxo
+            else if (tipoNorm.includes("nicho")) cor = "#27ae60";      // Verde
+            else if (tipoNorm.includes("cruz")) cor = "#c0392b";       // Vermelho
+
+            return L.divIcon({
+                className: 'custom-pin',
+                html: `<div style="background-color: ${cor}; width: 14px; height: 14px; border-radius: 50%; border: 2px solid white; box-shadow: 0 0 4px rgba(0,0,0,0.6);"></div>`,
+                iconSize: [18, 18],
+                iconAnchor: [9, 9]
+            });
         }
 
-        function mostrarAviso() {
-            const modal = document.getElementById('modal-aviso');
-            modal.classList.add('mostrar');
-            setTimeout(() => modal.classList.remove('mostrar'), 2400);
+        let todosDadosGlobais = [];
+
+        function iniciarCarregamentoDados() {
+            // Força o Google Sheets e o navegador a entregarem a versão mais recente sem cache
+            const urlSemCache = CSV_BASE_URL + "&t=" + new Date().getTime();
+
+            Papa.parse(urlSemCache, {
+                download: true,
+                header: false,
+                skipEmptyLines: true,
+                complete: function(resDistrito) {
+                    processarDadosCompletos(resDistrito.data);
+                },
+                error: function(err) {
+                    document.getElementById('loader').innerHTML = `<h3 style="color:#c0392b;">Erro ao carregar aba DISTRITO</h3><p>Verifique se publicou na Web como CSV.</p>`;
+                }
+            });
         }
 
-        // Base de coordenadas centrais dos concelhos por distrito para funcionamento imediato
-        const DADOS_DISTRIBUTIVOS = {
-            "aveiro": [
-                { nome: "Águeda", coords: [40.575, -8.447] }, { nome: "Albergaria-a-Velha", coords: [40.704, -8.483] },
-                { nome: "Anadia", coords: [40.441, -8.435] }, { nome: "Arouca", coords: [40.927, -8.243] },
-                { nome: "Aveiro", coords: [40.640, -8.653] }, { nome: "Castelo de Paiva", coords: [41.047, -8.292] },
-                { nome: "Espinho", coords: [41.004, -8.641] }, { nome: "Estarreja", coords: [40.758, -8.571] },
-                { nome: "Ílhavo", coords: [40.601, -8.667] }, { nome: "Mealhada", coords: [40.378, -8.448] },
-                { nome: "Murtosa", coords: [40.738, -8.632] }, { nome: "Oliveira de Azeméis", coords: [40.840, -8.477] },
-                { nome: "Oliveira do Bairro", coords: [40.510, -8.488] }, { nome: "Ovar", coords: [40.864, -8.626] },
-                { nome: "Santa Maria da Feira", coords: [40.925, -8.545] }, { nome: "São João da Madeira", coords: [40.903, -8.490] },
-                { nome: "Sever do Vouga", coords: [40.735, -8.371] }, { nome: "Vagos", coords: [40.547, -8.682] },
-                { nome: "Vale de Cambra", coords: [40.848, -8.394] }
-            ],
-            "bragança": [
-                { nome: "Alfândega da Fé", coords: [41.341, -6.963] }, { nome: "Bragança", coords: [41.806, -6.757] },
-                { nome: "Carrazeda de Ansiães", coords: [41.243, -7.303] }, { nome: "Freixo de Espada à Cinta", coords: [41.090, -6.804] },
-                { nome: "Macedo de Cavaleiros", coords: [41.538, -6.957] }, { nome: "Miranda do Douro", coords: [41.493, -6.273] },
-                { nome: "Mirandela", coords: [41.488, -7.186] }, { nome: "Mogadouro", coords: [41.343, -6.711] },
-                { nome: "Torre de Moncorvo", coords: [41.175, -7.051] }, { nome: "Vila Flor", coords: [41.308, -7.143] },
-                { nome: "Vimioso", coords: [41.583, -6.530] }, { nome: "Vinhais", coords: [41.837, -6.963] }
-            ]
+        function processarDadosCompletos(linhasCsv) {
+            todosDadosGlobais = [];
+            const concelhosSet = new Set();
+
+            // Descobre dinamicamente em que coluna está Foto e Ficha pelo cabeçalho (Linha 0),
+            // garantindo por defeito Coluna U (20) e Coluna V (21)
+            let idxFoto = 20;
+            let idxFicha = 21;
+            if (linhasCsv.length > 0) {
+                const cabecalho = linhasCsv[0];
+                for (let c = 0; c < cabecalho.length; c++) {
+                    const nomeCol = String(cabecalho[c] || "").trim().toLowerCase();
+                    if (nomeCol.includes("foto") || nomeCol.includes("imagem")) idxFoto = c;
+                    if (nomeCol.includes("ficha") || nomeCol.includes("pdf") || nomeCol.includes("doc")) idxFicha = c;
+                }
+            }
+
+            for (let i = 0; i < linhasCsv.length; i++) {
+                const r = linhasCsv[i];
+                if (!r || r.length < 9) continue;
+
+                // Mapeamento das colunas do Google Sheets (A até V)
+                const id           = String(r[0] || "").trim(); // A: ID
+                const lugar        = String(r[1] || "").trim(); // B: Lugar
+                const freguesia    = String(r[2] || "").trim(); // C: Freguesia
+                const concelho     = String(r[3] || "").trim(); // D: Concelho
+                const distrito     = String(r[4] || "").trim(); // E: Distrito
+                const painel       = String(r[5] || "").trim(); // F: Painel
+                const cronologia   = String(r[6] || "").trim(); // G: Cronologia
+                const latStr       = String(r[7] || "").trim().replace(',', '.'); // H: Latitude
+                const lonStr       = String(r[8] || "").trim().replace(',', '.'); // I: Longitude
+                const descricao    = String(r[9] || "").trim(); // J: Descrição
+                const autor        = String(r[10] || "").trim(); // K: Autor
+                const esmolas      = String(r[11] || "").trim(); // L: Esmolas
+                const protecao     = String(r[12] || "").trim(); // M: Proteção
+                const altura       = String(r[13] || "").trim(); // N: Altura
+                const largura      = String(r[14] || "").trim(); // O: Largura
+                const profundidade = String(r[15] || "").trim(); // P: Profundidade
+                const tipologia    = String(r[16] || "").trim(); // Q: Tipologia
+                const dataAtualiz  = String(r[17] || "").trim(); // R: Data
+                const referencias  = String(r[18] || "").trim(); // S: Referências
+                const obs          = String(r[19] || "").trim(); // T: Obs
+                
+                let foto  = String(r[idxFoto] || "").trim();  // U: Foto (índice 20)
+                let ficha = String(r[idxFicha] || "").trim(); // V: Ficha Técnica (índice 21)
+
+                const lat = parseFloat(latStr);
+                const lon = parseFloat(lonStr);
+
+                if (!isNaN(lat) && !isNaN(lon)) {
+                    if (concelho) concelhosSet.add(concelho);
+
+                    todosDadosGlobais.push({
+                        id, lugar, freguesia, concelho, distrito, painel, cronologia,
+                        lat, lon, descricao, autor, esmolas, protecao,
+                        altura, largura, profundidade, tipologia, dataAtualiz,
+                        referencias, obs,
+                        foto,
+                        ficha
+                    });
+                }
+            }
+
+            // Preenche o seletor de concelhos alfabeticamente
+            const selectConcelho = document.getElementById('select-concelho');
+            Array.from(concelhosSet).sort((a, b) => a.localeCompare(b, 'pt')).forEach(c => {
+                const opt = document.createElement('option');
+                opt.value = c;
+                opt.textContent = c;
+                selectConcelho.appendChild(opt);
+            });
+
+            // Permite abrir diretamente um concelho via URL (ex: index.html?concelho=Amares)
+            const urlParams = new URLSearchParams(window.location.search);
+            const concelhoUrl = urlParams.get('concelho');
+            if (concelhoUrl) {
+                for (let i = 0; i < selectConcelho.options.length; i++) {
+                    if (selectConcelho.options[i].value.toLowerCase() === concelhoUrl.toLowerCase()) {
+                        selectConcelho.selectedIndex = i;
+                        break;
+                    }
+                }
+            }
+
+            document.getElementById('loader').style.opacity = '0';
+            setTimeout(() => document.getElementById('loader').style.display = 'none', 500);
+
+            aplicarFiltros(true);
+        }
+
+        function renderizarMarcadores(dados) {
+            markersCluster.clearLayers();
+
+            let contador = 0;
+            let contadorFotos = 0;
+
+            dados.forEach((item, index) => {
+                const marker = L.marker([item.lat, item.lon], {
+                    icon: criarIcone(item.tipologia)
+                });
+
+                let tipoLower = (item.tipologia || "Outro").toLowerCase();
+                let badgeClass = "badge-outro";
+                if (tipoLower.includes("alminha")) badgeClass = "badge-alminhas";
+                else if (tipoLower.includes("nicho-cruz")) badgeClass = "badge-nicho-cruz";
+                else if (tipoLower.includes("nicho")) badgeClass = "badge-nicho";
+                else if (tipoLower.includes("cruz")) badgeClass = "badge-cruz";
+
+                let htmlFotos = "";
+                if (item.foto && item.foto.includes("http")) {
+                    const fotosRaw = item.foto.split(/[,;\n\s]+/).map(f => f.trim()).filter(f => f.startsWith('http'));
+                    if (fotosRaw.length > 0) {
+                        contadorFotos++;
+                        let imgsHtml = "";
+                        fotosRaw.forEach((fRaw, idx) => {
+                            const activeClass = idx === 0 ? "active" : "";
+                            const fUrl = normalizarLinkFotoDrive(fRaw);
+                            const idDrive = extrairIdDrive(fRaw);
+                            const fallbackUrl = idDrive ? `https://drive.google.com/thumbnail?id=${idDrive}&sz=w1000` : fUrl;
+                            imgsHtml += `<img src="${fUrl}" onerror="if(this.src!=='${fallbackUrl}'){this.src='${fallbackUrl}';}" class="carousel-img ${activeClass}" alt="Foto ${item.id}" referrerpolicy="no-referrer">`;
+                        });
+
+                        if (fotosRaw.length > 1) {
+                            htmlFotos = `
+                                <div class="carousel-container" id="carousel-${index}">
+                                    ${imgsHtml}
+                                    <button class="carousel-btn prev" onclick="mudarFoto(${index}, -1)">❮</button>
+                                    <button class="carousel-btn next" onclick="mudarFoto(${index}, 1)">❯</button>
+                                    <div class="carousel-counter"><span id="curr-${index}">1</span>/${fotosRaw.length}</div>
+                                </div>`;
+                        } else {
+                            htmlFotos = `
+                                <div class="carousel-container">
+                                    ${imgsHtml}
+                                </div>`;
+                        }
+                    }
+                }
+
+                let htmlMedidas = "";
+                if (item.altura || item.largura || item.profundidade) {
+                    htmlMedidas = `<div class="popup-row"><strong>Medidas:</strong> ${item.altura || "-"} (Alt) x ${item.largura || "-"} (Larg) x ${item.profundidade || "-"} (Prof)</div>`;
+                }
+
+                let htmlPainel = item.painel ? `<div class="popup-row"><strong>Iconografia / Painel:</strong> ${item.painel}</div>` : "";
+                let htmlDescricao = item.descricao ? `<div class="popup-description">${item.descricao}</div>` : "";
+                let htmlAutor = item.autor ? `<div class="popup-row" style="font-size:11px; color:#666;"><strong>Recolha/Autor:</strong> ${item.autor}</div>` : "";
+
+                let btnFicha = (item.ficha && item.ficha.includes("http")) ? `<a href="${item.ficha}" target="_blank" rel="noopener" class="btn-ficha">📄 Ficha Técnica</a>` : "";
+                let btnGps = `<a href="https://www.google.com/maps?q=${item.lat},${item.lon}" target="_blank" rel="noopener" class="btn-gps" title="Abrir no Google Maps">📍 GPS</a>`;
+
+                const popupContent = `
+                    <div class="popup-header">
+                        <span>${item.id || "Registo PRP"}</span>
+                        <span class="popup-badge ${badgeClass}">${item.tipologia || "Património"}</span>
+                    </div>
+                    <div class="popup-body">
+                        ${htmlFotos}
+                        <div class="popup-row"><strong>Local:</strong> ${item.lugar ? item.lugar + ', ' : ''}${item.freguesia}, ${item.concelho}</div>
+                        ${item.cronologia ? `<div class="popup-row"><strong>Cronologia:</strong> ${item.cronologia}</div>` : ""}
+                        ${htmlMedidas}
+                        ${htmlPainel}
+                        ${htmlDescricao}
+                        ${htmlAutor}
+                        <div class="popup-actions">
+                            ${btnFicha}
+                            ${btnGps}
+                        </div>
+                    </div>
+                `;
+
+                marker.bindPopup(popupContent, { maxWidth: 320 });
+                markersCluster.addLayer(marker);
+                contador++;
+            });
+
+            document.getElementById('stat-total').textContent = `Monumentos: ${contador}`;
+            document.getElementById('stat-fotos').textContent = `Com foto: ${contadorFotos}`;
+        }
+
+        window.mudarFoto = function(index, direcao) {
+            const container = document.getElementById(`carousel-${index}`);
+            if (!container) return;
+            const imagens = container.querySelectorAll('.carousel-img');
+            const counter = document.getElementById(`curr-${index}`);
+            
+            let currentIndex = 0;
+            imagens.forEach((img, idx) => {
+                if (img.classList.contains('active')) currentIndex = idx;
+                img.classList.remove('active');
+            });
+
+            let novoIndex = currentIndex + direcao;
+            if (novoIndex >= imagens.length) novoIndex = 0;
+            if (novoIndex < 0) novoIndex = imagens.length - 1;
+
+            imagens[novoIndex].classList.add('active');
+            if (counter) counter.textContent = novoIndex + 1;
         };
 
-        function obterConcelhosComMapa() {
-            return new Promise(resolve => {
-                const ativos = new Set(["povoa de varzim", "vale de cambra"]);
-                Papa.parse(CSV_DISTRITO_URL, {
-                    download: true,
-                    header: false,
-                    skipEmptyLines: true,
-                    complete: function(res) {
-                        if (res && res.data) {
-                            for (let i = 1; i < res.data.length; i++) {
-                                const c = normalizar(res.data[i][3]);
-                                if (c) ativos.add(c);
-                            }
-                        }
-                        resolve(ativos);
-                    },
-                    error: function() { resolve(ativos); }
-                });
+        function aplicarFiltros(ajustarZoomInicial = false) {
+            const concelhoSel = document.getElementById('select-concelho').value;
+            const tipologiaSel = document.getElementById('select-tipologia').value;
+
+            const dadosFiltrados = todosDadosGlobais.filter(item => {
+                const matchConcelho = (concelhoSel === "TODOS" || item.concelho === concelhoSel);
+                
+                let matchTipologia = false;
+                const tItem = (item.tipologia || "").trim().toLowerCase();
+                if (tipologiaSel === "TODOS") {
+                    matchTipologia = true;
+                } else if (tipologiaSel === "Nicho-Cruz") {
+                    matchTipologia = tItem.includes("nicho-cruz");
+                } else if (tipologiaSel === "Nicho") {
+                    matchTipologia = (tItem.includes("nicho") && !tItem.includes("cruz"));
+                } else if (tipologiaSel === "Cruz") {
+                    matchTipologia = (tItem.includes("cruz") && !tItem.includes("nicho"));
+                } else {
+                    matchTipologia = tItem.includes(tipologiaSel.toLowerCase());
+                }
+
+                return matchConcelho && matchTipologia;
             });
+
+            renderizarMarcadores(dadosFiltrados);
+
+            if ((concelhoSel !== "TODOS" || ajustarZoomInicial) && dadosFiltrados.length > 0) {
+                const bounds = L.latLngBounds(dadosFiltrados.map(d => [d.lat, d.lon]));
+                if (bounds.isValid()) {
+                    map.fitBounds(bounds, { padding: [50, 50], maxZoom: 15 });
+                }
+            }
         }
 
-        obterConcelhosComMapa().then(concelhosAtivos => {
-            const concelhosDistrito = DADOS_DISTRIBUTIVOS[DISTRITO_ALVO] || DADOS_DISTRIBUTIVOS["aveiro"];
-            const grupoCoords = [];
+        document.getElementById('select-concelho').addEventListener('change', () => aplicarFiltros(true));
+        document.getElementById('select-tipologia').addEventListener('change', () => aplicarFiltros(false));
 
-            concelhosDistrito.forEach(c => {
-                const temMapa = concelhosAtivos.has(normalizar(c.nome));
-                
-                // Cores solicitadas: Verde mais escuro para os que têm mapa, Verde claro para os restantes
-                const corFundo = temMapa ? "#1b5e20" : "#c8e6c9";
-                const corTexto = temMapa ? "#ffffff" : "#1b5e20";
-                const borda = temMapa ? "1.5px solid #ffffff" : "1px solid #81c784";
-
-                const icone = L.divIcon({
-                    className: 'custom-pin',
-                    html: `<div style="background-color: ${corFundo}; color: ${corTexto}; padding: 4px 10px; border-radius: 14px; font-size: 9.5px; font-weight: bold; box-shadow: 0 2px 6px rgba(0,0,0,0.25); border: ${borda}; white-space: nowrap; text-align: center; cursor: pointer;">${c.nome}</div>`,
-                    iconSize: [110, 24],
-                    iconAnchor: [55, 12]
-                });
-
-                const marker = L.marker(c.coords, { icon: icone }).addTo(map);
-
-                marker.on('click', function() {
-                    if (temMapa) {
-                        window.open(URL_MAPA_CONCELHO + encodeURIComponent(c.nome), '_blank');
-                    } else {
-                        mostrarAviso();
-                    }
-                });
-
-                grupoCoords.push(c.coords);
-            });
-
-            if (grupoCoords.length > 0) {
-                map.fitBounds(L.latLngBounds(grupoCoords), { padding: [40, 40] });
-            }
-        });
+        window.onload = iniciarCarregamentoDados;
     </script>
 </body>
 </html>
