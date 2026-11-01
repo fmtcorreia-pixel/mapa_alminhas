@@ -2,7 +2,7 @@
 <html lang="pt">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>PRP - Património Religioso Popular</title>
     
     <!-- Leaflet CSS -->
@@ -17,7 +17,7 @@
         :root {
             --primary-color: #2c3e50;
             --accent-color: #27ae60;
-            --bg-glass: rgba(255, 255, 255, 0.95);
+            --bg-glass: rgba(255, 255, 255, 0.96);
         }
 
         * {
@@ -28,8 +28,10 @@
 
         body, html {
             height: 100%;
+            width: 100%;
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
             color: #333;
+            overflow: hidden;
         }
 
         #map {
@@ -38,55 +40,76 @@
             z-index: 1;
         }
 
-        /* Painel de Controlo Superior / Filtros */
+        /* Painel de Controlo Desktop */
         .control-panel {
             position: absolute;
             top: 15px;
             right: 15px;
             z-index: 1000;
             background: var(--bg-glass);
-            padding: 15px;
+            padding: 14px;
             border-radius: 10px;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+            box-shadow: 0 4px 18px rgba(0,0,0,0.22);
             width: 320px;
             max-width: calc(100vw - 30px);
-            backdrop-filter: blur(5px);
+            backdrop-filter: blur(6px);
+            transition: max-height 0.3s ease, transform 0.3s ease;
+        }
+
+        .panel-header-mobile {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            cursor: pointer;
         }
 
         .control-panel h1 {
             font-size: 15px;
             color: var(--primary-color);
-            margin-bottom: 5px;
             display: flex;
             align-items: center;
             gap: 6px;
         }
 
+        .btn-toggle-filtros {
+            display: none;
+            background: #eef2f5;
+            border: 1px solid #ccd1d9;
+            border-radius: 5px;
+            padding: 3px 8px;
+            font-size: 11px;
+            font-weight: 700;
+            color: var(--primary-color);
+            cursor: pointer;
+        }
+
         .control-panel p.subtitle {
             font-size: 11px;
             color: #666;
-            margin-bottom: 12px;
+            margin-top: 2px;
+            margin-bottom: 10px;
         }
 
         .filter-group {
-            margin-bottom: 10px;
+            margin-bottom: 8px;
         }
 
         .filter-group label {
             display: block;
-            font-size: 12px;
+            font-size: 11.5px;
             font-weight: bold;
-            margin-bottom: 4px;
+            margin-bottom: 3px;
             color: #444;
         }
 
         .filter-group select {
             width: 100%;
-            padding: 8px;
+            padding: 7px 8px;
             border: 1px solid #ccc;
             border-radius: 6px;
             background: #fff;
-            font-size: 13px;
+            font-size: 12.5px;
+            color: #222;
         }
 
         /* Botão Repor Filtros */
@@ -94,15 +117,15 @@
             width: 100%;
             margin-top: 4px;
             margin-bottom: 6px;
-            padding: 7px;
+            padding: 6px;
             background: #ecf0f1;
             color: var(--primary-color);
             border: 1px solid #bdc3c7;
             border-radius: 6px;
-            font-size: 11.5px;
+            font-size: 11px;
             font-weight: 600;
             cursor: pointer;
-            transition: background 0.2s, color 0.2s;
+            transition: background 0.2s;
         }
 
         .btn-limpar-filtros:hover {
@@ -113,9 +136,9 @@
         .stats {
             font-size: 11px;
             color: #555;
-            margin-top: 10px;
+            margin-top: 8px;
             border-top: 1px solid #eee;
-            padding-top: 8px;
+            padding-top: 6px;
             display: flex;
             justify-content: space-between;
             font-weight: 600;
@@ -126,10 +149,10 @@
             display: flex;
             flex-wrap: wrap;
             gap: 8px;
-            margin-top: 8px;
-            padding-top: 8px;
+            margin-top: 6px;
+            padding-top: 6px;
             border-top: 1px solid #eee;
-            font-size: 11px;
+            font-size: 10.5px;
         }
 
         .legend-item {
@@ -139,8 +162,8 @@
         }
 
         .legend-dot {
-            width: 10px;
-            height: 10px;
+            width: 9px;
+            height: 9px;
             border-radius: 50%;
             display: inline-block;
         }
@@ -162,13 +185,13 @@
         }
 
         .spinner {
-            width: 50px;
-            height: 50px;
-            border: 5px solid #f3f3f3;
-            border-top: 5px solid var(--accent-color);
+            width: 44px;
+            height: 44px;
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid var(--accent-color);
             border-radius: 50%;
             animation: spin 1s linear infinite;
-            margin-bottom: 15px;
+            margin-bottom: 12px;
         }
 
         @keyframes spin {
@@ -177,17 +200,17 @@
         }
 
         #loader h2 {
-            font-size: 18px;
+            font-size: 17px;
             color: var(--primary-color);
-            margin-bottom: 5px;
+            margin-bottom: 4px;
         }
 
         #loader p {
-            font-size: 13px;
+            font-size: 12px;
             color: #666;
         }
 
-        /* Estilo personalizado das Janelas Popups */
+        /* Janelas Popups */
         .leaflet-popup-content-wrapper {
             border-radius: 12px;
             padding: 0;
@@ -198,31 +221,30 @@
         .leaflet-popup-content {
             margin: 0;
             line-height: 1.4;
-            width: 300px !important;
-            max-height: 420px;
+            width: 290px !important;
+            max-height: 400px;
             overflow-y: auto;
         }
 
         .popup-header {
             background: var(--primary-color);
             color: white;
-            padding: 10px 14px;
+            padding: 9px 12px;
             font-weight: bold;
-            font-size: 13px;
+            font-size: 12.5px;
             display: flex;
             justify-content: space-between;
             align-items: center;
         }
 
         .popup-badge {
-            font-size: 10px;
+            font-size: 9.5px;
             padding: 2px 6px;
             border-radius: 4px;
             text-transform: uppercase;
             font-weight: bold;
         }
 
-        /* Cores de Tipologia para Badges e Marcadores */
         .badge-alminhas { background: #2980b9; color: white; }
         .badge-nicho { background: #27ae60; color: white; }
         .badge-cruz { background: #c0392b; color: white; }
@@ -230,17 +252,16 @@
         .badge-outro { background: #7f8c8d; color: white; }
 
         .popup-body {
-            padding: 12px;
-            font-size: 12px;
+            padding: 10px 12px;
+            font-size: 11.5px;
         }
 
-        /* Carrossel de Fotos */
         .carousel-container {
             position: relative;
             width: 100%;
-            height: 180px;
+            height: 170px;
             background: #1a1a1a;
-            margin-bottom: 10px;
+            margin-bottom: 8px;
             border-radius: 6px;
             overflow: hidden;
         }
@@ -260,32 +281,32 @@
             position: absolute;
             top: 50%;
             transform: translateY(-50%);
-            background: rgba(0,0,0,0.5);
+            background: rgba(0,0,0,0.55);
             color: white;
             border: none;
             cursor: pointer;
-            padding: 6px 10px;
+            padding: 6px 9px;
             font-size: 12px;
             border-radius: 4px;
             z-index: 10;
         }
 
-        .carousel-btn.prev { left: 5px; }
-        .carousel-btn.next { right: 5px; }
+        .carousel-btn.prev { left: 4px; }
+        .carousel-btn.next { right: 4px; }
         
         .carousel-counter {
             position: absolute;
-            bottom: 5px;
-            right: 8px;
-            background: rgba(0,0,0,0.6);
+            bottom: 4px;
+            right: 6px;
+            background: rgba(0,0,0,0.65);
             color: white;
-            font-size: 10px;
+            font-size: 9.5px;
             padding: 2px 5px;
             border-radius: 3px;
         }
 
         .popup-row {
-            margin-bottom: 6px;
+            margin-bottom: 5px;
         }
 
         .popup-row strong {
@@ -298,15 +319,15 @@
             background: #f9f9f9;
             padding: 6px;
             border-left: 3px solid #ccc;
-            margin: 8px 0;
-            max-height: 90px;
+            margin: 6px 0;
+            max-height: 80px;
             overflow-y: auto;
         }
 
         .popup-actions {
             display: flex;
             gap: 6px;
-            margin-top: 10px;
+            margin-top: 8px;
         }
 
         .btn-ficha {
@@ -315,15 +336,10 @@
             background: #e74c3c;
             color: white !important;
             text-decoration: none;
-            padding: 8px;
+            padding: 7px;
             border-radius: 6px;
             font-weight: bold;
             font-size: 11px;
-            transition: background 0.2s;
-        }
-
-        .btn-ficha:hover {
-            background: #c0392b;
         }
 
         .btn-gps {
@@ -331,24 +347,84 @@
             background: #34495e;
             color: white !important;
             text-decoration: none;
-            padding: 8px 10px;
+            padding: 7px 10px;
             border-radius: 6px;
             font-weight: bold;
             font-size: 11px;
-            transition: background 0.2s;
         }
 
-        .btn-gps:hover {
-            background: #2c3e50;
-        }
-
-        @media (max-width: 600px) {
+        /* ========================================================== */
+        /* OTIMIZAÇÃO ESPECÍFICA PARA DISPOSITIVOS MÓVEIS (SMARTPHONES) */
+        /* ========================================================== */
+        @media (max-width: 640px) {
             .control-panel {
                 top: auto;
-                bottom: 15px;
-                right: 10px;
-                left: 10px;
-                width: auto;
+                bottom: 0;
+                right: 0;
+                left: 0;
+                width: 100%;
+                max-width: 100%;
+                border-radius: 14px 14px 0 0;
+                padding: 10px 14px;
+                box-shadow: 0 -3px 15px rgba(0,0,0,0.25);
+            }
+
+            .panel-header-mobile {
+                padding-bottom: 2px;
+            }
+
+            .control-panel h1 {
+                font-size: 13.5px;
+            }
+
+            .control-panel p.subtitle {
+                display: none; /* Poupa altura no ecrã mobile */
+            }
+
+            .btn-toggle-filtros {
+                display: block; /* Botão para expandir/ocultar */
+            }
+
+            /* Área dos seletores colapsável */
+            .panel-corpo {
+                display: none;
+                margin-top: 8px;
+            }
+
+            .control-panel.expandido .panel-corpo {
+                display: block;
+            }
+
+            .filter-group {
+                margin-bottom: 6px;
+            }
+
+            .filter-group label {
+                font-size: 11px;
+                margin-bottom: 2px;
+            }
+
+            .filter-group select {
+                padding: 6px;
+                font-size: 12px;
+            }
+
+            .stats {
+                margin-top: 6px;
+                padding-top: 5px;
+                font-size: 10.5px;
+            }
+
+            .legend {
+                font-size: 9.5px;
+                gap: 6px;
+                margin-top: 5px;
+                padding-top: 5px;
+            }
+
+            /* Garante que o Leaflet não fica escondido atrás da barra móvel */
+            .leaflet-bottom {
+                bottom: 50px;
             }
         }
     </style>
@@ -361,43 +437,48 @@
         <p>A sincronizar registos e fotografias da aba DISTRITO</p>
     </div>
 
-    <div class="control-panel">
-        <h1>🏛️ Alminhas Digital</h1>
+    <div class="control-panel" id="painel-filtros">
+        <div class="panel-header-mobile" id="cabecalho-mobile">
+            <h1>🏛️ Alminhas Digital</h1>
+            <button type="button" class="btn-toggle-filtros" id="btn-toggle">⚙️ Filtros ▾</button>
+        </div>
         <p class="subtitle">Património Religioso Popular</p>
-        
-        <div class="filter-group">
-            <label for="select-concelho">Filtrar por Concelho:</label>
-            <select id="select-concelho">
-                <option value="TODOS">Todos os Concelhos</option>
-            </select>
-        </div>
 
-        <div class="filter-group">
-            <label for="select-freguesia">Filtrar por Freguesia:</label>
-            <select id="select-freguesia">
-                <option value="TODOS">Todas as Freguesias</option>
-            </select>
-        </div>
+        <!-- Corpo recolhível em mobile -->
+        <div class="panel-corpo" id="panel-corpo">
+            <div class="filter-group">
+                <label for="select-concelho">Filtrar por Concelho:</label>
+                <select id="select-concelho">
+                    <option value="TODOS">Todos os Concelhos</option>
+                </select>
+            </div>
 
-        <div class="filter-group">
-            <label for="select-tipologia">Filtrar por Tipologia:</label>
-            <select id="select-tipologia">
-                <option value="TODOS">Todas as Tipologias</option>
-                <option value="Alminhas">Alminhas</option>
-                <option value="Nicho">Nicho</option>
-                <option value="Cruz">Cruz</option>
-                <option value="Nicho-Cruz">Nicho-Cruz</option>
-            </select>
-        </div>
+            <div class="filter-group">
+                <label for="select-freguesia">Filtrar por Freguesia:</label>
+                <select id="select-freguesia">
+                    <option value="TODOS">Todas as Freguesias</option>
+                </select>
+            </div>
 
-        <!-- Botão Limpar Filtros -->
-        <button id="btn-limpar" class="btn-limpar-filtros" type="button">🔄 Repor Filtros</button>
+            <div class="filter-group">
+                <label for="select-tipologia">Filtrar por Tipologia:</label>
+                <select id="select-tipologia">
+                    <option value="TODOS">Todas as Tipologias</option>
+                    <option value="Alminhas">Alminhas</option>
+                    <option value="Nicho">Nicho</option>
+                    <option value="Cruz">Cruz</option>
+                    <option value="Nicho-Cruz">Nicho-Cruz</option>
+                </select>
+            </div>
 
-        <div class="legend">
-            <div class="legend-item"><span class="legend-dot" style="background:#2980b9;"></span> Alminhas</div>
-            <div class="legend-item"><span class="legend-dot" style="background:#27ae60;"></span> Nicho</div>
-            <div class="legend-item"><span class="legend-dot" style="background:#c0392b;"></span> Cruz</div>
-            <div class="legend-item"><span class="legend-dot" style="background:#8e44ad;"></span> Nicho-Cruz</div>
+            <button id="btn-limpar" class="btn-limpar-filtros" type="button">🔄 Repor Filtros</button>
+
+            <div class="legend">
+                <div class="legend-item"><span class="legend-dot" style="background:#2980b9;"></span> Alminhas</div>
+                <div class="legend-item"><span class="legend-dot" style="background:#27ae60;"></span> Nicho</div>
+                <div class="legend-item"><span class="legend-dot" style="background:#c0392b;"></span> Cruz</div>
+                <div class="legend-item"><span class="legend-dot" style="background:#8e44ad;"></span> Nicho-Cruz</div>
+            </div>
         </div>
 
         <div class="stats">
@@ -414,11 +495,32 @@
 
     <script>
         // ====================================================================
-        // LINK PUBLICADO EM CSV DA ABA DISTRITO DO GOOGLE SHEETS (COM ANTI-CACHE)
+        // LINK PUBLICADO EM CSV DA ABA DISTRITO DO GOOGLE SHEETS
         // ====================================================================
         const CSV_BASE_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSdIHTs9OSFutV7_VVJftFnusa-PFXrFRlklASBc1kmqbjbJDRgBccUJuiYwhLHPGEJW-fli0PY8Exw/pub?gid=1728241245&single=true&output=csv";
 
-        // Extrai o ID do ficheiro da Google Drive e gera o link direto de imagem mais estável
+        // Alternância do painel de filtros em ecrãs móveis
+        const painelFiltros = document.getElementById('painel-filtros');
+        const btnToggle = document.getElementById('btn-toggle');
+        const cabecalhoMobile = document.getElementById('cabecalho-mobile');
+
+        function alternarFiltrosMobile() {
+            if (window.innerWidth <= 640) {
+                painelFiltros.classList.toggle('expandido');
+                const estaExpandido = painelFiltros.classList.contains('expandido');
+                btnToggle.textContent = estaExpandido ? '✕ Fechar' : '⚙️ Filtros ▾';
+            }
+        }
+
+        btnToggle.addEventListener('click', (e) => {
+            e.stopPropagation();
+            alternarFiltrosMobile();
+        });
+
+        cabecalhoMobile.addEventListener('click', () => {
+            alternarFiltrosMobile();
+        });
+
         function extrairIdDrive(url) {
             if (!url) return "";
             let limpo = url.trim();
@@ -439,12 +541,10 @@
             return url.trim();
         }
 
-        // Inicialização do Mapa centrado em Portugal
         const map = L.map('map', {
             zoomControl: true
         }).setView([41.15, -8.35], 8);
 
-        // Camadas de Fundo - "Mapa de Ruas (Google)" definido por defeito
         const googleStreets = L.tileLayer('https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}', {
             maxZoom: 20,
             attribution: '&copy; Google Maps'
@@ -473,7 +573,6 @@
         };
         L.control.layers(baseLayers, null, { position: 'topleft' }).addTo(map);
 
-        // Agrupador de Clusters de Marcadores
         const markersCluster = L.markerClusterGroup({
             maxClusterRadius: 45,
             spiderfyOnMaxZoom: true,
@@ -481,15 +580,14 @@
         });
         map.addLayer(markersCluster);
 
-        // Ícones personalizados por Tipologia
         function criarIcone(tipologia) {
-            let cor = "#7f8c8d"; // Cinzento por defeito
+            let cor = "#7f8c8d";
             let tipoNorm = (tipologia || "").trim().toLowerCase();
 
-            if (tipoNorm.includes("alminha")) cor = "#2980b9";      // Azul
-            else if (tipoNorm.includes("nicho-cruz")) cor = "#8e44ad"; // Roxo
-            else if (tipoNorm.includes("nicho")) cor = "#27ae60";      // Verde
-            else if (tipoNorm.includes("cruz")) cor = "#c0392b";       // Vermelho
+            if (tipoNorm.includes("alminha")) cor = "#2980b9";
+            else if (tipoNorm.includes("nicho-cruz")) cor = "#8e44ad";
+            else if (tipoNorm.includes("nicho")) cor = "#27ae60";
+            else if (tipoNorm.includes("cruz")) cor = "#c0392b";
 
             return L.divIcon({
                 className: 'custom-pin',
@@ -502,7 +600,6 @@
         let todosDadosGlobais = [];
 
         function iniciarCarregamentoDados() {
-            // Força o Google Sheets e o navegador a entregarem a versão mais recente sem cache
             const urlSemCache = CSV_BASE_URL + "&t=" + new Date().getTime();
 
             Papa.parse(urlSemCache, {
@@ -520,10 +617,8 @@
 
         function processarDadosCompletos(linhasCsv) {
             todosDadosGlobais = [];
-            const concelhosSet = new Set();
+            const concelhosContagem = {};
 
-            // Descobre dinamicamente em que coluna está Foto e Ficha pelo cabeçalho (Linha 0),
-            // garantindo por defeito Coluna U (20) e Coluna V (21)
             let idxFoto = 20;
             let idxFicha = 21;
             if (linhasCsv.length > 0) {
@@ -539,36 +634,37 @@
                 const r = linhasCsv[i];
                 if (!r || r.length < 9) continue;
 
-                // Mapeamento das colunas do Google Sheets (A até V)
-                const id           = String(r[0] || "").trim(); // A: ID
-                const lugar        = String(r[1] || "").trim(); // B: Lugar
-                const freguesia    = String(r[2] || "").trim(); // C: Freguesia
-                const concelho     = String(r[3] || "").trim(); // D: Concelho
-                const distrito     = String(r[4] || "").trim(); // E: Distrito
-                const painel       = String(r[5] || "").trim(); // F: Painel
-                const cronologia   = String(r[6] || "").trim(); // G: Cronologia
-                const latStr       = String(r[7] || "").trim().replace(',', '.'); // H: Latitude
-                const lonStr       = String(r[8] || "").trim().replace(',', '.'); // I: Longitude
-                const descricao    = String(r[9] || "").trim(); // J: Descrição
-                const autor        = String(r[10] || "").trim(); // K: Autor
-                const esmolas      = String(r[11] || "").trim(); // L: Esmolas
-                const protecao     = String(r[12] || "").trim(); // M: Proteção
-                const altura       = String(r[13] || "").trim(); // N: Altura
-                const largura      = String(r[14] || "").trim(); // O: Largura
-                const profundidade = String(r[15] || "").trim(); // P: Profundidade
-                const tipologia    = String(r[16] || "").trim(); // Q: Tipologia
-                const dataAtualiz  = String(r[17] || "").trim(); // R: Data
-                const referencias  = String(r[18] || "").trim(); // S: Referências
-                const obs          = String(r[19] || "").trim(); // T: Obs
+                const id           = String(r[0] || "").trim();
+                const lugar        = String(r[1] || "").trim();
+                const freguesia    = String(r[2] || "").trim();
+                const concelho     = String(r[3] || "").trim();
+                const distrito     = String(r[4] || "").trim();
+                const painel       = String(r[5] || "").trim();
+                const cronologia   = String(r[6] || "").trim();
+                const latStr       = String(r[7] || "").trim().replace(',', '.');
+                const lonStr       = String(r[8] || "").trim().replace(',', '.');
+                const descricao    = String(r[9] || "").trim();
+                const autor        = String(r[10] || "").trim();
+                const esmolas      = String(r[11] || "").trim();
+                const protecao     = String(r[12] || "").trim();
+                const altura       = String(r[13] || "").trim();
+                const largura      = String(r[14] || "").trim();
+                const profundidade = String(r[15] || "").trim();
+                const tipologia    = String(r[16] || "").trim();
+                const dataAtualiz  = String(r[17] || "").trim();
+                const referencias  = String(r[18] || "").trim();
+                const obs          = String(r[19] || "").trim();
                 
-                let foto  = String(r[idxFoto] || "").trim();  // U: Foto (índice 20)
-                let ficha = String(r[idxFicha] || "").trim(); // V: Ficha Técnica (índice 21)
+                let foto  = String(r[idxFoto] || "").trim();
+                let ficha = String(r[idxFicha] || "").trim();
 
                 const lat = parseFloat(latStr);
                 const lon = parseFloat(lonStr);
 
                 if (!isNaN(lat) && !isNaN(lon)) {
-                    if (concelho) concelhosSet.add(concelho);
+                    if (concelho) {
+                        concelhosContagem[concelho] = (concelhosContagem[concelho] || 0) + 1;
+                    }
 
                     todosDadosGlobais.push({
                         id, lugar, freguesia, concelho, distrito, painel, cronologia,
@@ -581,17 +677,15 @@
                 }
             }
 
-            // Preenche o seletor de concelhos alfabeticamente
             const selectConcelho = document.getElementById('select-concelho');
             selectConcelho.innerHTML = '<option value="TODOS">Todos os Concelhos</option>';
-            Array.from(concelhosSet).sort((a, b) => a.localeCompare(b, 'pt')).forEach(c => {
+            Object.keys(concelhosContagem).sort((a, b) => a.localeCompare(b, 'pt')).forEach(c => {
                 const opt = document.createElement('option');
                 opt.value = c;
-                opt.textContent = c;
+                opt.textContent = `${c} (${concelhosContagem[c]})`;
                 selectConcelho.appendChild(opt);
             });
 
-            // Permite abrir diretamente um concelho via URL (ex: index.html?concelho=Amares)
             const urlParams = new URLSearchParams(window.location.search);
             const concelhoUrl = urlParams.get('concelho');
             if (concelhoUrl) {
@@ -603,7 +697,6 @@
                 }
             }
 
-            // Atualiza a lista de freguesias com a respetiva contagem de registos
             atualizarOpcoesFreguesias();
 
             document.getElementById('loader').style.opacity = '0';
@@ -617,7 +710,6 @@
             const selectFreguesia = document.getElementById('select-freguesia');
             const contagemFreguesias = {};
 
-            // Conta os registos por freguesia tendo em conta o concelho selecionado
             todosDadosGlobais.forEach(item => {
                 if (concelhoSel === "TODOS" || item.concelho === concelhoSel) {
                     if (item.freguesia) {
@@ -627,8 +719,6 @@
             });
 
             selectFreguesia.innerHTML = '<option value="TODOS">Todas as Freguesias</option>';
-            
-            // Ordena alfabeticamente e inclui o número de elementos entre parênteses
             Object.keys(contagemFreguesias).sort((a, b) => a.localeCompare(b, 'pt')).forEach(f => {
                 const opt = document.createElement('option');
                 opt.value = f;
@@ -718,7 +808,7 @@
                     </div>
                 `;
 
-                marker.bindPopup(popupContent, { maxWidth: 320 });
+                marker.bindPopup(popupContent, { maxWidth: 300 });
                 markersCluster.addLayer(marker);
                 contador++;
             });
@@ -778,12 +868,11 @@
             if ((concelhoSel !== "TODOS" || freguesiaSel !== "TODOS" || ajustarZoom) && dadosFiltrados.length > 0) {
                 const bounds = L.latLngBounds(dadosFiltrados.map(d => [d.lat, d.lon]));
                 if (bounds.isValid()) {
-                    map.fitBounds(bounds, { padding: [50, 50], maxZoom: 15 });
+                    map.fitBounds(bounds, { padding: [40, 40], maxZoom: 15 });
                 }
             }
         }
 
-        // Eventos dos filtros
         document.getElementById('select-concelho').addEventListener('change', () => {
             atualizarOpcoesFreguesias();
             aplicarFiltros(true);
@@ -797,7 +886,6 @@
             aplicarFiltros(false);
         });
 
-        // Evento do botão Repor Filtros
         document.getElementById('btn-limpar').addEventListener('click', () => {
             document.getElementById('select-concelho').value = "TODOS";
             document.getElementById('select-tipologia').value = "TODOS";
