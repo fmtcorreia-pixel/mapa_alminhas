@@ -89,6 +89,27 @@
             font-size: 13px;
         }
 
+        /* Botão Repor Filtros */
+        .btn-limpar-filtros {
+            width: 100%;
+            margin-top: 4px;
+            margin-bottom: 6px;
+            padding: 7px;
+            background: #ecf0f1;
+            color: var(--primary-color);
+            border: 1px solid #bdc3c7;
+            border-radius: 6px;
+            font-size: 11.5px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.2s, color 0.2s;
+        }
+
+        .btn-limpar-filtros:hover {
+            background: #bdc3c7;
+            color: #1a252f;
+        }
+
         .stats {
             font-size: 11px;
             color: #555;
@@ -369,6 +390,9 @@
             </select>
         </div>
 
+        <!-- Botão Limpar Filtros -->
+        <button id="btn-limpar" class="btn-limpar-filtros" type="button">🔄 Repor Filtros</button>
+
         <div class="legend">
             <div class="legend-item"><span class="legend-dot" style="background:#2980b9;"></span> Alminhas</div>
             <div class="legend-item"><span class="legend-dot" style="background:#27ae60;"></span> Nicho</div>
@@ -579,7 +603,7 @@
                 }
             }
 
-            // Atualiza a lista de freguesias de acordo com a seleção inicial
+            // Atualiza a lista de freguesias com a respetiva contagem de registos
             atualizarOpcoesFreguesias();
 
             document.getElementById('loader').style.opacity = '0';
@@ -591,19 +615,24 @@
         function atualizarOpcoesFreguesias() {
             const concelhoSel = document.getElementById('select-concelho').value;
             const selectFreguesia = document.getElementById('select-freguesia');
-            const freguesiasSet = new Set();
+            const contagemFreguesias = {};
 
+            // Conta os registos por freguesia tendo em conta o concelho selecionado
             todosDadosGlobais.forEach(item => {
                 if (concelhoSel === "TODOS" || item.concelho === concelhoSel) {
-                    if (item.freguesia) freguesiasSet.add(item.freguesia);
+                    if (item.freguesia) {
+                        contagemFreguesias[item.freguesia] = (contagemFreguesias[item.freguesia] || 0) + 1;
+                    }
                 }
             });
 
             selectFreguesia.innerHTML = '<option value="TODOS">Todas as Freguesias</option>';
-            Array.from(freguesiasSet).sort((a, b) => a.localeCompare(b, 'pt')).forEach(f => {
+            
+            // Ordena alfabeticamente e inclui o número de elementos entre parênteses
+            Object.keys(contagemFreguesias).sort((a, b) => a.localeCompare(b, 'pt')).forEach(f => {
                 const opt = document.createElement('option');
                 opt.value = f;
-                opt.textContent = f;
+                opt.textContent = `${f} (${contagemFreguesias[f]})`;
                 selectFreguesia.appendChild(opt);
             });
         }
@@ -766,6 +795,15 @@
 
         document.getElementById('select-tipologia').addEventListener('change', () => {
             aplicarFiltros(false);
+        });
+
+        // Evento do botão Repor Filtros
+        document.getElementById('btn-limpar').addEventListener('click', () => {
+            document.getElementById('select-concelho').value = "TODOS";
+            document.getElementById('select-tipologia').value = "TODOS";
+            atualizarOpcoesFreguesias();
+            document.getElementById('select-freguesia').value = "TODOS";
+            aplicarFiltros(true);
         });
 
         window.onload = iniciarCarregamentoDados;
