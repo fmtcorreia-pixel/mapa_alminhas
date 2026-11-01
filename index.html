@@ -423,22 +423,22 @@
         // Camadas de Fundo - "Mapa de Ruas (Google)" definido por defeito
         const googleStreets = L.tileLayer('https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}', {
             maxZoom: 20,
-            attribution: '© Google Maps'
+            attribution: '&copy; Google Maps'
         }).addTo(map);
 
         const googleHybrid = L.tileLayer('https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}', {
             maxZoom: 20,
-            attribution: '© Google Maps Satellite'
+            attribution: '&copy; Google Maps Satellite'
         });
 
         const googleTerrain = L.tileLayer('https://mt1.google.com/vt/lyrs=p&x={x}&y={y}&z={z}', {
             maxZoom: 20,
-            attribution: '© Google Maps Terrain'
+            attribution: '&copy; Google Maps Terrain'
         });
 
         const satLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
             maxZoom: 19,
-            attribution: 'Tiles © Esri'
+            attribution: 'Tiles &copy; Esri'
         });
 
         const baseLayers = {
@@ -579,4 +579,196 @@
                 }
             }
 
-            // Atualiza a lista de freguesias de acordo com a
+            // Atualiza a lista de freguesias de acordo com a seleção inicial
+            atualizarOpcoesFreguesias();
+
+            document.getElementById('loader').style.opacity = '0';
+            setTimeout(() => document.getElementById('loader').style.display = 'none', 500);
+
+            aplicarFiltros(true);
+        }
+
+        function atualizarOpcoesFreguesias() {
+            const concelhoSel = document.getElementById('select-concelho').value;
+            const selectFreguesia = document.getElementById('select-freguesia');
+            const freguesiasSet = new Set();
+
+            todosDadosGlobais.forEach(item => {
+                if (concelhoSel === "TODOS" || item.concelho === concelhoSel) {
+                    if (item.freguesia) freguesiasSet.add(item.freguesia);
+                }
+            });
+
+            selectFreguesia.innerHTML = '<option value="TODOS">Todas as Freguesias</option>';
+            Array.from(freguesiasSet).sort((a, b) => a.localeCompare(b, 'pt')).forEach(f => {
+                const opt = document.createElement('option');
+                opt.value = f;
+                opt.textContent = f;
+                selectFreguesia.appendChild(opt);
+            });
+        }
+
+        function renderizarMarcadores(dados) {
+            markersCluster.clearLayers();
+
+            let contador = 0;
+            let contadorFotos = 0;
+
+            dados.forEach((item, index) => {
+                const marker = L.marker([item.lat, item.lon], {
+                    icon: criarIcone(item.tipologia)
+                });
+
+                let tipoLower = (item.tipologia || "Outro").toLowerCase();
+                let badgeClass = "badge-outro";
+                if (tipoLower.includes("alminha")) badgeClass = "badge-alminhas";
+                else if (tipoLower.includes("nicho-cruz")) badgeClass = "badge-nicho-cruz";
+                else if (tipoLower.includes("nicho")) badgeClass = "badge-nicho";
+                else if (tipoLower.includes("cruz")) badgeClass = "badge-cruz";
+
+                let htmlFotos = "";
+                if (item.foto && item.foto.includes("http")) {
+                    const fotosRaw = item.foto.split(/[,;\n\s]+/).map(f => f.trim()).filter(f => f.startsWith('http'));
+                    if (fotosRaw.length > 0) {
+                        contadorFotos++;
+                        let imgsHtml = "";
+                        fotosRaw.forEach((fRaw, idx) => {
+                            const activeClass = idx === 0 ? "active" : "";
+                            const fUrl = normalizarLinkFotoDrive(fRaw);
+                            const idDrive = extrairIdDrive(fRaw);
+                            const fallbackUrl = idDrive ? `https://drive.google.com/thumbnail?id=${idDrive}&sz=w1000` : fUrl;
+                            imgsHtml += `<img src="${fUrl}" onerror="if(this.src!=='${fallbackUrl}'){this.src='${fallbackUrl}';}" class="carousel-img ${activeClass}" alt="Foto ${item.id}" referrerpolicy="no-referrer">`;
+                        });
+
+                        if (fotosRaw.length > 1) {
+                            htmlFotos = `
+                                <div class="carousel-container" id="carousel-${index}">
+                                    ${imgsHtml}
+                                    <button class="carousel-btn prev" onclick="mudarFoto(${index}, -1)">❮</button>
+                                    <button class="carousel-btn next" onclick="mudarFoto(${index}, 1)">❯</button>
+                                    <div class="carousel-counter"><span id="curr-${index}">1</span>/${fotosRaw.length}</div>
+                                </div>`;
+                        } else {
+                            htmlFotos = `
+                                <div class="carousel-container">
+                                    ${imgsHtml}
+                                </div>`;
+                        }
+                    }
+                }
+
+                let htmlMedidas = "";
+                if (item.altura || item.largura || item.profundidade) {
+                    htmlMedidas = `<div class="popup-row"><strong>Medidas:</strong> ${item.altura || "-"} (Alt) x ${item.largura || "-"} (Larg) x ${item.profundidade || "-"} (Prof)</div>`;
+                }
+
+                let htmlPainel = item.painel ? `<div class="popup-row"><strong>Iconografia / Painel:</strong> ${item.painel}</div>` : "";
+                let htmlDescricao = item.descricao ? `<div class="popup-description">${item.descricao}</div>` : "";
+                let htmlAutor = item.autor ? `<div class="popup-row" style="font-size:11px; color:#666;"><strong>Recolha/Autor:</strong> ${item.autor}</div>` : "";
+
+                let btnFicha = (item.ficha && item.ficha.includes("http")) ? `<a href="${item.ficha}" target="_blank" rel="noopener" class="btn-ficha">📄 Ficha Técnica</a>` : "";
+                let btnGps = `<a href="https://www.google.com/maps?q=${item.lat},${item.lon}" target="_blank" rel="noopener" class="btn-gps" title="Abrir no Google Maps">📍 GPS</a>`;
+
+                const popupContent = `
+                    <div class="popup-header">
+                        <span>${item.id || "Registo PRP"}</span>
+                        <span class="popup-badge ${badgeClass}">${item.tipologia || "Património"}</span>
+                    </div>
+                    <div class="popup-body">
+                        ${htmlFotos}
+                        <div class="popup-row"><strong>Local:</strong> ${item.lugar ? item.lugar + ', ' : ''}${item.freguesia}, ${item.concelho}</div>
+                        ${item.cronologia ? `<div class="popup-row"><strong>Cronologia:</strong> ${item.cronologia}</div>` : ""}
+                        ${htmlMedidas}
+                        ${htmlPainel}
+                        ${htmlDescricao}
+                        ${htmlAutor}
+                        <div class="popup-actions">
+                            ${btnFicha}
+                            ${btnGps}
+                        </div>
+                    </div>
+                `;
+
+                marker.bindPopup(popupContent, { maxWidth: 320 });
+                markersCluster.addLayer(marker);
+                contador++;
+            });
+
+            document.getElementById('stat-total').textContent = `Monumentos: ${contador}`;
+            document.getElementById('stat-fotos').textContent = `Com foto: ${contadorFotos}`;
+        }
+
+        window.mudarFoto = function(index, direcao) {
+            const container = document.getElementById(`carousel-${index}`);
+            if (!container) return;
+            const imagens = container.querySelectorAll('.carousel-img');
+            const counter = document.getElementById(`curr-${index}`);
+            
+            let currentIndex = 0;
+            imagens.forEach((img, idx) => {
+                if (img.classList.contains('active')) currentIndex = idx;
+                img.classList.remove('active');
+            });
+
+            let novoIndex = currentIndex + direcao;
+            if (novoIndex >= imagens.length) novoIndex = 0;
+            if (novoIndex < 0) novoIndex = imagens.length - 1;
+
+            imagens[novoIndex].classList.add('active');
+            if (counter) counter.textContent = novoIndex + 1;
+        };
+
+        function aplicarFiltros(ajustarZoom = false) {
+            const concelhoSel = document.getElementById('select-concelho').value;
+            const freguesiaSel = document.getElementById('select-freguesia').value;
+            const tipologiaSel = document.getElementById('select-tipologia').value;
+
+            const dadosFiltrados = todosDadosGlobais.filter(item => {
+                const matchConcelho = (concelhoSel === "TODOS" || item.concelho === concelhoSel);
+                const matchFreguesia = (freguesiaSel === "TODOS" || item.freguesia === freguesiaSel);
+                
+                let matchTipologia = false;
+                const tItem = (item.tipologia || "").trim().toLowerCase();
+                if (tipologiaSel === "TODOS") {
+                    matchTipologia = true;
+                } else if (tipologiaSel === "Nicho-Cruz") {
+                    matchTipologia = tItem.includes("nicho-cruz");
+                } else if (tipologiaSel === "Nicho") {
+                    matchTipologia = (tItem.includes("nicho") && !tItem.includes("cruz"));
+                } else if (tipologiaSel === "Cruz") {
+                    matchTipologia = (tItem.includes("cruz") && !tItem.includes("nicho"));
+                } else {
+                    matchTipologia = tItem.includes(tipologiaSel.toLowerCase());
+                }
+
+                return matchConcelho && matchFreguesia && matchTipologia;
+            });
+
+            renderizarMarcadores(dadosFiltrados);
+
+            if ((concelhoSel !== "TODOS" || freguesiaSel !== "TODOS" || ajustarZoom) && dadosFiltrados.length > 0) {
+                const bounds = L.latLngBounds(dadosFiltrados.map(d => [d.lat, d.lon]));
+                if (bounds.isValid()) {
+                    map.fitBounds(bounds, { padding: [50, 50], maxZoom: 15 });
+                }
+            }
+        }
+
+        // Eventos dos filtros
+        document.getElementById('select-concelho').addEventListener('change', () => {
+            atualizarOpcoesFreguesias();
+            aplicarFiltros(true);
+        });
+
+        document.getElementById('select-freguesia').addEventListener('change', () => {
+            aplicarFiltros(true);
+        });
+
+        document.getElementById('select-tipologia').addEventListener('change', () => {
+            aplicarFiltros(false);
+        });
+
+        window.onload = iniciarCarregamentoDados;
+    </script>
+</body>
+</html>
