@@ -181,7 +181,7 @@
             flex-direction: column;
             justify-content: center;
             align-items: center;
-            transition: opacity 0.5s ease;
+            transition: opacity 0.4s ease;
         }
 
         .spinner {
@@ -378,14 +378,13 @@
             }
 
             .control-panel p.subtitle {
-                display: none; /* Poupa altura no ecrã mobile */
+                display: none;
             }
 
             .btn-toggle-filtros {
-                display: block; /* Botão para expandir/ocultar */
+                display: block;
             }
 
-            /* Área dos seletores colapsável */
             .panel-corpo {
                 display: none;
                 margin-top: 8px;
@@ -422,7 +421,6 @@
                 padding-top: 5px;
             }
 
-            /* Garante que o Leaflet não fica escondido atrás da barra móvel */
             .leaflet-bottom {
                 bottom: 50px;
             }
@@ -542,7 +540,8 @@
         }
 
         const map = L.map('map', {
-            zoomControl: true
+            zoomControl: true,
+            preferCanvas: true
         }).setView([41.15, -8.35], 8);
 
         const googleStreets = L.tileLayer('https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}', {
@@ -573,31 +572,56 @@
         };
         L.control.layers(baseLayers, null, { position: 'topleft' }).addTo(map);
 
+        // ====================================================================
+        // OTIMIZAÇÃO 1: CLUSTER COM CHUNKED LOADING (NÃO BLOQUEIA O ECRÃ)
+        // ====================================================================
         const markersCluster = L.markerClusterGroup({
+            chunkedLoading: true,
+            chunkInterval: 100,
+            chunkDelay: 25,
             maxClusterRadius: 45,
             spiderfyOnMaxZoom: true,
             showCoverageOnHover: false
         });
         map.addLayer(markersCluster);
 
-        function criarIcone(tipologia) {
-            let cor = "#7f8c8d";
+        // ====================================================================
+        // OTIMIZAÇÃO 2: CACHE DE ÍCONES POR TIPOLOGIA (EVITA CRIAR 7000 DIVS)
+        // ====================================================================
+        const ICONES_CACHE = {};
+        function obterIcone(tipologia) {
             let tipoNorm = (tipologia || "").trim().toLowerCase();
+            let chave = "outro";
+            let cor = "#7f8c8d";
 
-            if (tipoNorm.includes("alminha")) cor = "#2980b9";
-            else if (tipoNorm.includes("nicho-cruz")) cor = "#8e44ad";
-            else if (tipoNorm.includes("nicho")) cor = "#27ae60";
-            else if (tipoNorm.includes("cruz")) cor = "#c0392b";
+            if (tipoNorm.includes("alminha")) {
+                chave = "alminha";
+                cor = "#2980b9";
+            } else if (tipoNorm.includes("nicho-cruz") || tipoNorm.includes("nicho/cruz")) {
+                chave = "nicho-cruz";
+                cor = "#8e44ad";
+            } else if (tipoNorm.includes("nicho")) {
+                chave = "nicho";
+                cor = "#27ae60";
+            } else if (tipoNorm.includes("cruz")) {
+                chave = "cruz";
+                cor = "#c0392b";
+            }
 
-            return L.divIcon({
-                className: 'custom-pin',
-                html: `<div style="background-color: ${cor}; width: 14px; height: 14px; border-radius: 50%; border: 2px solid white; box-shadow: 0 0 4px rgba(0,0,0,0.6);"></div>`,
-                iconSize: [18, 18],
-                iconAnchor: [9, 9]
-            });
+            if (!ICONES_CACHE[chave]) {
+                ICONES_CACHE[chave] = L.divIcon({
+                    className: 'custom-pin',
+                    html: `<div style="background-color: ${cor}; width: 14px; height: 14px; border-radius: 50%; border: 2px solid white; box-shadow: 0 0 4px rgba(0,0,0,0.6);"></div>`,
+                    iconSize: [18, 18],
+                    iconAnchor: [9, 9]
+                });
+            }
+            return ICONES_CACHE[chave];
         }
 
         let todosDadosGlobais = [];
+        let dadosFiltradosAtuais = [];
+        let totalFotosFiltradas = 0;
 
         function iniciarCarregamentoDados() {
             const urlSemCache = CSV_BASE_URL + "&t=" + new Date().getTime();
@@ -634,6 +658,13 @@
                 const r = linhasCsv[i];
                 if (!r || r.length < 9) continue;
 
+                const latStr = String(r[7] || "").trim().replace(',', '.');
+                const lonStr = String(r[8] || "").trim().replace(',', '.');
+                const lat = parseFloat(latStr);
+                const lon = parseFloat(lonStr);
+
+                if (isNaN(lat) || isNaN(lon)) continue;
+
                 const id           = String(r[0] || "").trim();
                 const lugar        = String(r[1] || "").trim();
                 const freguesia    = String(r[2] || "").trim();
@@ -641,8 +672,6 @@
                 const distrito     = String(r[4] || "").trim();
                 const painel       = String(r[5] || "").trim();
                 const cronologia   = String(r[6] || "").trim();
-                const latStr       = String(r[7] || "").trim().replace(',', '.');
-                const lonStr       = String(r[8] || "").trim().replace(',', '.');
                 const descricao    = String(r[9] || "").trim();
                 const autor        = String(r[10] || "").trim();
                 const esmolas      = String(r[11] || "").trim();
@@ -657,24 +686,20 @@
                 
                 let foto  = String(r[idxFoto] || "").trim();
                 let ficha = String(r[idxFicha] || "").trim();
+                const temFoto = Boolean(foto && foto.includes("http"));
 
-                const lat = parseFloat(latStr);
-                const lon = parseFloat(lonStr);
-
-                if (!isNaN(lat) && !isNaN(lon)) {
-                    if (concelho) {
-                        concelhosContagem[concelho] = (concelhosContagem[concelho] || 0) + 1;
-                    }
-
-                    todosDadosGlobais.push({
-                        id, lugar, freguesia, concelho, distrito, painel, cronologia,
-                        lat, lon, descricao, autor, esmolas, protecao,
-                        altura, largura, profundidade, tipologia, dataAtualiz,
-                        referencias, obs,
-                        foto,
-                        ficha
-                    });
+                if (concelho) {
+                    concelhosContagem[concelho] = (concelhosContagem[concelho] || 0) + 1;
                 }
+
+                todosDadosGlobais.push({
+                    uid: i,
+                    id, lugar, freguesia, concelho, distrito, painel, cronologia,
+                    lat, lon, descricao, autor, esmolas, protecao,
+                    altura, largura, profundidade, tipologia, dataAtualiz,
+                    referencias, obs,
+                    foto, ficha, temFoto
+                });
             }
 
             const selectConcelho = document.getElementById('select-concelho');
@@ -700,7 +725,7 @@
             atualizarOpcoesFreguesias();
 
             document.getElementById('loader').style.opacity = '0';
-            setTimeout(() => document.getElementById('loader').style.display = 'none', 500);
+            setTimeout(() => document.getElementById('loader').style.display = 'none', 400);
 
             aplicarFiltros(true);
         }
@@ -727,101 +752,124 @@
             });
         }
 
-        function renderizarMarcadores(dados) {
-            markersCluster.clearLayers();
+        // ====================================================================
+        // OTIMIZAÇÃO 3: CONSTRUIR O HTML DO POPUP APENAS QUANDO O UTILIZADOR CLICA
+        // ====================================================================
+        function construirHtmlPopup(item) {
+            let tipoLower = (item.tipologia || "Outro").toLowerCase();
+            let badgeClass = "badge-outro";
+            if (tipoLower.includes("alminha")) badgeClass = "badge-alminhas";
+            else if (tipoLower.includes("nicho-cruz") || tipoLower.includes("nicho/cruz")) badgeClass = "badge-nicho-cruz";
+            else if (tipoLower.includes("nicho")) badgeClass = "badge-nicho";
+            else if (tipoLower.includes("cruz")) badgeClass = "badge-cruz";
 
-            let contador = 0;
-            let contadorFotos = 0;
+            let htmlFotos = "";
+            if (item.temFoto) {
+                const fotosRaw = item.foto.split(/[,;\n\s]+/).map(f => f.trim()).filter(f => f.startsWith('http'));
+                if (fotosRaw.length > 0) {
+                    let imgsHtml = "";
+                    fotosRaw.forEach((fRaw, idx) => {
+                        const activeClass = idx === 0 ? "active" : "";
+                        const fUrl = normalizarLinkFotoDrive(fRaw);
+                        const idDrive = extrairIdDrive(fRaw);
+                        const fallbackUrl = idDrive ? `https://drive.google.com/thumbnail?id=${idDrive}&sz=w1000` : fUrl;
+                        imgsHtml += `<img src="${fUrl}" onerror="if(this.src!=='${fallbackUrl}'){this.src='${fallbackUrl}';}" class="carousel-img ${activeClass}" alt="Foto ${item.id}" referrerpolicy="no-referrer">`;
+                    });
 
-            dados.forEach((item, index) => {
-                const marker = L.marker([item.lat, item.lon], {
-                    icon: criarIcone(item.tipologia)
-                });
-
-                let tipoLower = (item.tipologia || "Outro").toLowerCase();
-                let badgeClass = "badge-outro";
-                if (tipoLower.includes("alminha")) badgeClass = "badge-alminhas";
-                else if (tipoLower.includes("nicho-cruz")) badgeClass = "badge-nicho-cruz";
-                else if (tipoLower.includes("nicho")) badgeClass = "badge-nicho";
-                else if (tipoLower.includes("cruz")) badgeClass = "badge-cruz";
-
-                let htmlFotos = "";
-                if (item.foto && item.foto.includes("http")) {
-                    const fotosRaw = item.foto.split(/[,;\n\s]+/).map(f => f.trim()).filter(f => f.startsWith('http'));
-                    if (fotosRaw.length > 0) {
-                        contadorFotos++;
-                        let imgsHtml = "";
-                        fotosRaw.forEach((fRaw, idx) => {
-                            const activeClass = idx === 0 ? "active" : "";
-                            const fUrl = normalizarLinkFotoDrive(fRaw);
-                            const idDrive = extrairIdDrive(fRaw);
-                            const fallbackUrl = idDrive ? `https://drive.google.com/thumbnail?id=${idDrive}&sz=w1000` : fUrl;
-                            imgsHtml += `<img src="${fUrl}" onerror="if(this.src!=='${fallbackUrl}'){this.src='${fallbackUrl}';}" class="carousel-img ${activeClass}" alt="Foto ${item.id}" referrerpolicy="no-referrer">`;
-                        });
-
-                        if (fotosRaw.length > 1) {
-                            htmlFotos = `
-                                <div class="carousel-container" id="carousel-${index}">
-                                    ${imgsHtml}
-                                    <button class="carousel-btn prev" onclick="mudarFoto(${index}, -1)">❮</button>
-                                    <button class="carousel-btn next" onclick="mudarFoto(${index}, 1)">❯</button>
-                                    <div class="carousel-counter"><span id="curr-${index}">1</span>/${fotosRaw.length}</div>
-                                </div>`;
-                        } else {
-                            htmlFotos = `
-                                <div class="carousel-container">
-                                    ${imgsHtml}
-                                </div>`;
-                        }
+                    if (fotosRaw.length > 1) {
+                        htmlFotos = `
+                            <div class="carousel-container" id="carousel-${item.uid}">
+                                ${imgsHtml}
+                                <button class="carousel-btn prev" onclick="mudarFoto(${item.uid}, -1)">❮</button>
+                                <button class="carousel-btn next" onclick="mudarFoto(${item.uid}, 1)">❯</button>
+                                <div class="carousel-counter"><span id="curr-${item.uid}">1</span>/${fotosRaw.length}</div>
+                            </div>`;
+                    } else {
+                        htmlFotos = `
+                            <div class="carousel-container">
+                                ${imgsHtml}
+                            </div>`;
                     }
                 }
+            }
 
-                let htmlMedidas = "";
-                if (item.altura || item.largura || item.profundidade) {
-                    htmlMedidas = `<div class="popup-row"><strong>Medidas:</strong> ${item.altura || "-"} (Alt) x ${item.largura || "-"} (Larg) x ${item.profundidade || "-"} (Prof)</div>`;
-                }
+            let htmlMedidas = "";
+            if (item.altura || item.largura || item.profundidade) {
+                htmlMedidas = `<div class="popup-row"><strong>Medidas:</strong> ${item.altura || "-"} (Alt) x ${item.largura || "-"} (Larg) x ${item.profundidade || "-"} (Prof)</div>`;
+            }
 
-                let htmlPainel = item.painel ? `<div class="popup-row"><strong>Iconografia / Painel:</strong> ${item.painel}</div>` : "";
-                let htmlDescricao = item.descricao ? `<div class="popup-description">${item.descricao}</div>` : "";
-                let htmlAutor = item.autor ? `<div class="popup-row" style="font-size:11px; color:#666;"><strong>Recolha/Autor:</strong> ${item.autor}</div>` : "";
+            let htmlPainel = item.painel ? `<div class="popup-row"><strong>Iconografia / Painel:</strong> ${item.painel}</div>` : "";
+            let htmlDescricao = item.descricao ? `<div class="popup-description">${item.descricao}</div>` : "";
+            let htmlAutor = item.autor ? `<div class="popup-row" style="font-size:11px; color:#666;"><strong>Recolha/Autor:</strong> ${item.autor}</div>` : "";
 
-                let btnFicha = (item.ficha && item.ficha.includes("http")) ? `<a href="${item.ficha}" target="_blank" rel="noopener" class="btn-ficha">📄 Ficha Técnica</a>` : "";
-                let btnGps = `<a href="https://www.google.com/maps?q=${item.lat},${item.lon}" target="_blank" rel="noopener" class="btn-gps" title="Abrir no Google Maps">📍 GPS</a>`;
+            let btnFicha = (item.ficha && item.ficha.includes("http")) ? `<a href="${item.ficha}" target="_blank" rel="noopener" class="btn-ficha">📄 Ficha Técnica</a>` : "";
+            let btnGps = `<a href="https://www.google.com/maps?q=${item.lat},${item.lon}" target="_blank" rel="noopener" class="btn-gps" title="Abrir no Google Maps">📍 GPS</a>`;
 
-                const popupContent = `
-                    <div class="popup-header">
-                        <span>${item.id || "Registo PRP"}</span>
-                        <span class="popup-badge ${badgeClass}">${item.tipologia || "Património"}</span>
+            return `
+                <div class="popup-header">
+                    <span>${item.id || "Registo PRP"}</span>
+                    <span class="popup-badge ${badgeClass}">${item.tipologia || "Património"}</span>
+                </div>
+                <div class="popup-body">
+                    ${htmlFotos}
+                    <div class="popup-row"><strong>Local:</strong> ${item.lugar ? item.lugar + ', ' : ''}${item.freguesia}, ${item.concelho}</div>
+                    ${item.cronologia ? `<div class="popup-row"><strong>Cronologia:</strong> ${item.cronologia}</div>` : ""}
+                    ${htmlMedidas}
+                    ${htmlPainel}
+                    ${htmlDescricao}
+                    ${htmlAutor}
+                    <div class="popup-actions">
+                        ${btnFicha}
+                        ${btnGps}
                     </div>
-                    <div class="popup-body">
-                        ${htmlFotos}
-                        <div class="popup-row"><strong>Local:</strong> ${item.lugar ? item.lugar + ', ' : ''}${item.freguesia}, ${item.concelho}</div>
-                        ${item.cronologia ? `<div class="popup-row"><strong>Cronologia:</strong> ${item.cronologia}</div>` : ""}
-                        ${htmlMedidas}
-                        ${htmlPainel}
-                        ${htmlDescricao}
-                        ${htmlAutor}
-                        <div class="popup-actions">
-                            ${btnFicha}
-                            ${btnGps}
-                        </div>
-                    </div>
-                `;
-
-                marker.bindPopup(popupContent, { maxWidth: 300 });
-                markersCluster.addLayer(marker);
-                contador++;
-            });
-
-            document.getElementById('stat-total').textContent = `Monumentos: ${contador}`;
-            document.getElementById('stat-fotos').textContent = `Com foto: ${contadorFotos}`;
+                </div>
+            `;
         }
 
-        window.mudarFoto = function(index, direcao) {
-            const container = document.getElementById(`carousel-${index}`);
+        // ====================================================================
+        // OTIMIZAÇÃO 4: BOUNDING BOX (DESENHAR APENAS OS MARCADORES NA ÁREA VISÍVEL)
+        // ====================================================================
+        function atualizarMarcadoresNaJanela() {
+            markersCluster.clearLayers();
+            if (dadosFiltradosAtuais.length === 0) {
+                document.getElementById('stat-total').textContent = `Monumentos: 0`;
+                document.getElementById('stat-fotos').textContent = `Com foto: 0`;
+                return;
+            }
+
+            // Margem de 15% além do ecrã visível para que o arrasto seja suave
+            const bounds = map.getBounds().pad(0.15);
+            const marcadoresVisiveis = [];
+
+            for (let i = 0; i < dadosFiltradosAtuais.length; i++) {
+                const item = dadosFiltradosAtuais[i];
+                if (bounds.contains([item.lat, item.lon])) {
+                    // Se o marcador já foi instanciado antes, reutiliza-o
+                    if (!item._marker) {
+                        const m = L.marker([item.lat, item.lon], {
+                            icon: obterIcone(item.tipologia)
+                        });
+                        // Lazy Popup: só gera o HTML quando o utilizador clica no marcador
+                        m.bindPopup(() => construirHtmlPopup(item), { maxWidth: 300 });
+                        item._marker = m;
+                    }
+                    marcadoresVisiveis.push(item._marker);
+                }
+            }
+
+            // Adiciona todos de uma só vez (em lote)
+            markersCluster.addLayers(marcadoresVisiveis);
+
+            // Mantém a contagem total do filtro + indicação dos visíveis
+            document.getElementById('stat-total').textContent = `Monumentos: ${dadosFiltradosAtuais.length} (${marcadoresVisiveis.length} no ecrã)`;
+            document.getElementById('stat-fotos').textContent = `Com foto: ${totalFotosFiltradas}`;
+        }
+
+        window.mudarFoto = function(uid, direcao) {
+            const container = document.getElementById(`carousel-${uid}`);
             if (!container) return;
             const imagens = container.querySelectorAll('.carousel-img');
-            const counter = document.getElementById(`curr-${index}`);
+            const counter = document.getElementById(`curr-${uid}`);
             
             let currentIndex = 0;
             imagens.forEach((img, idx) => {
@@ -842,7 +890,9 @@
             const freguesiaSel = document.getElementById('select-freguesia').value;
             const tipologiaSel = document.getElementById('select-tipologia').value;
 
-            const dadosFiltrados = todosDadosGlobais.filter(item => {
+            totalFotosFiltradas = 0;
+
+            dadosFiltradosAtuais = todosDadosGlobais.filter(item => {
                 const matchConcelho = (concelhoSel === "TODOS" || item.concelho === concelhoSel);
                 const matchFreguesia = (freguesiaSel === "TODOS" || item.freguesia === freguesiaSel);
                 
@@ -851,7 +901,7 @@
                 if (tipologiaSel === "TODOS") {
                     matchTipologia = true;
                 } else if (tipologiaSel === "Nicho-Cruz") {
-                    matchTipologia = tItem.includes("nicho-cruz");
+                    matchTipologia = (tItem.includes("nicho-cruz") || tItem.includes("nicho/cruz"));
                 } else if (tipologiaSel === "Nicho") {
                     matchTipologia = (tItem.includes("nicho") && !tItem.includes("cruz"));
                 } else if (tipologiaSel === "Cruz") {
@@ -860,18 +910,29 @@
                     matchTipologia = tItem.includes(tipologiaSel.toLowerCase());
                 }
 
-                return matchConcelho && matchFreguesia && matchTipologia;
+                const passa = matchConcelho && matchFreguesia && matchTipologia;
+                if (passa && item.temFoto) {
+                    totalFotosFiltradas++;
+                }
+                return passa;
             });
 
-            renderizarMarcadores(dadosFiltrados);
-
-            if ((concelhoSel !== "TODOS" || freguesiaSel !== "TODOS" || ajustarZoom) && dadosFiltrados.length > 0) {
-                const bounds = L.latLngBounds(dadosFiltrados.map(d => [d.lat, d.lon]));
+            if ((concelhoSel !== "TODOS" || freguesiaSel !== "TODOS" || ajustarZoom) && dadosFiltradosAtuais.length > 0) {
+                const bounds = L.latLngBounds(dadosFiltradosAtuais.map(d => [d.lat, d.lon]));
                 if (bounds.isValid()) {
                     map.fitBounds(bounds, { padding: [40, 40], maxZoom: 15 });
                 }
             }
+
+            atualizarMarcadoresNaJanela();
         }
+
+        // Atualizar os marcadores visíveis sempre que o utilizador arrasta ou faz zoom no mapa
+        let timerMovimento = null;
+        map.on('moveend', () => {
+            clearTimeout(timerMovimento);
+            timerMovimento = setTimeout(atualizarMarcadoresNaJanela, 120);
+        });
 
         document.getElementById('select-concelho').addEventListener('change', () => {
             atualizarOpcoesFreguesias();
