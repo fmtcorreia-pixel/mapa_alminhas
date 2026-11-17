@@ -38,7 +38,6 @@
             width: 100%;
             height: 100vh;
             z-index: 1;
-            touch-action: manipulation;
         }
 
         /* Painel de Controlo Desktop */
@@ -92,4 +91,202 @@
         }
 
         .filter-group {
-            margin-bottom
+            margin-bottom: 8px;
+        }
+
+        .filter-group label {
+            display: block;
+            font-size: 11.5px;
+            font-weight: bold;
+            margin-bottom: 3px;
+            color: #444;
+        }
+
+        .filter-group select {
+            width: 100%;
+            padding: 7px 8px;
+            border: 1px solid #ccc;
+            border-radius: 6px;
+            background: #fff;
+            font-size: 12.5px;
+            color: #222;
+        }
+
+        /* Botão Repor Filtros */
+        .btn-limpar-filtros {
+            width: 100%;
+            margin-top: 4px;
+            margin-bottom: 6px;
+            padding: 6px;
+            background: #ecf0f1;
+            color: var(--primary-color);
+            border: 1px solid #bdc3c7;
+            border-radius: 6px;
+            font-size: 11px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .btn-limpar-filtros:hover {
+            background: #bdc3c7;
+            color: #1a252f;
+        }
+
+        .stats {
+            font-size: 11px;
+            color: #555;
+            margin-top: 8px;
+            border-top: 1px solid #eee;
+            padding-top: 6px;
+            display: flex;
+            justify-content: space-between;
+            font-weight: 600;
+        }
+
+        /* Legenda de Cores */
+        .legend {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-top: 6px;
+            padding-top: 6px;
+            border-top: 1px solid #eee;
+            font-size: 10.5px;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .legend-dot {
+            width: 9px;
+            height: 9px;
+            border-radius: 50%;
+            display: inline-block;
+        }
+
+        /* Ecrã de Carregamento */
+        #loader {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(255, 255, 255, 0.95);
+            z-index: 9999;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            transition: opacity 0.4s ease;
+            text-align: center;
+            padding: 20px;
+        }
+
+        .spinner {
+            width: 44px;
+            height: 44px;
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid var(--accent-color);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-bottom: 12px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        #loader h2 {
+            font-size: 17px;
+            color: var(--primary-color);
+            margin-bottom: 4px;
+        }
+
+        #loader p {
+            font-size: 12px;
+            color: #666;
+        }
+
+        /* Janelas Popups */
+        .leaflet-popup-content-wrapper {
+            border-radius: 12px;
+            padding: 0;
+            overflow: hidden;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.3);
+        }
+
+        .leaflet-popup-content {
+            margin: 0;
+            line-height: 1.4;
+            width: 290px !important;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+
+        .popup-header {
+            background: var(--primary-color);
+            color: white;
+            padding: 9px 12px;
+            font-weight: bold;
+            font-size: 12.5px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .popup-badge {
+            font-size: 9.5px;
+            padding: 2px 6px;
+            border-radius: 4px;
+            text-transform: uppercase;
+            font-weight: bold;
+        }
+
+        .badge-alminhas { background: #2980b9; color: white; }
+        .badge-nicho { background: #27ae60; color: white; }
+        .badge-cruz { background: #c0392b; color: white; }
+        .badge-nicho-cruz { background: #8e44ad; color: white; }
+        .badge-outro { background: #7f8c8d; color: white; }
+
+        .popup-body {
+            padding: 10px 12px;
+            font-size: 11.5px;
+        }
+
+        .carousel-container {
+            position: relative;
+            width: 100%;
+            height: 170px;
+            background: #1a1a1a;
+            margin-bottom: 8px;
+            border-radius: 6px;
+            overflow: hidden;
+        }
+
+        .carousel-img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            display: none;
+        }
+
+        .carousel-img.active {
+            display: block;
+        }
+
+        .carousel-btn {
+            position: absolute;
+            top: 50%;
+            transform: translateY(-50%);
+            background: rgba(0,0,0,0.55);
+            color: white;
+            border: none;
+            cursor: pointer;
+            padding: 6px 9px;
+            font-size: 12px;
+            border-radius: 4px;
