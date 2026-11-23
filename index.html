@@ -592,6 +592,24 @@
         map.addLayer(markersCluster);
 
         // ====================================================================
+        // CONTROLO DE POPUP ABERTO (IMPEDE QUE O AUTOPAN FECHE O POPUP)
+        // ====================================================================
+        let popupAberto = false;
+        let movimentoPendente = false;
+
+        map.on('popupopen', () => {
+            popupAberto = true;
+        });
+
+        map.on('popupclose', () => {
+            popupAberto = false;
+            if (movimentoPendente) {
+                movimentoPendente = false;
+                atualizarMarcadoresNaJanela();
+            }
+        });
+
+        // ====================================================================
         // OTIMIZAÇÃO 2: CACHE DE ÍCONES POR TIPOLOGIA (EVITA CRIAR 7000 DIVS)
         // ====================================================================
         const ICONES_CACHE = {};
@@ -835,7 +853,12 @@
         // ====================================================================
         // OTIMIZAÇÃO 4: BOUNDING BOX (DESENHAR APENAS OS MARCADORES NA ÁREA VISÍVEL)
         // ====================================================================
-        function atualizarMarcadoresNaJanela() {
+        function atualizarMarcadoresNaJanela(forcar = false) {
+            if (popupAberto && !forcar) {
+                movimentoPendente = true;
+                return;
+            }
+
             markersCluster.clearLayers();
             if (dadosFiltradosAtuais.length === 0) {
                 document.getElementById('stat-total').textContent = `Monumentos: 0`;
@@ -843,30 +866,32 @@
                 return;
             }
 
-            // Margem de 15% além do ecrã visível para que o arrasto seja suave
-            const bounds = map.getBounds().pad(0.15);
+            // Margem de 25% além do ecrã visível para que o arrasto (incluindo autoPan) seja suave
+            const bounds = map.getBounds().pad(0.25);
             const marcadoresVisiveis = [];
 
             for (let i = 0; i < dadosFiltradosAtuais.length; i++) {
                 const item = dadosFiltradosAtuais[i];
                 if (bounds.contains([item.lat, item.lon])) {
-                    // Se o marcador já foi instanciado antes, reutiliza-o
                     if (!item._marker) {
                         const m = L.marker([item.lat, item.lon], {
                             icon: obterIcone(item.tipologia)
                         });
-                        // Lazy Popup: só gera o HTML quando o utilizador clica no marcador
-                        m.bindPopup(() => construirHtmlPopup(item), { maxWidth: 300 });
+                        // Lazy Popup com autoPan e margens de segurança
+                        m.bindPopup(() => construirHtmlPopup(item), {
+                            maxWidth: 300,
+                            autoPan: true,
+                            autoPanPaddingTopLeft: L.point(20, 20),
+                            autoPanPaddingBottomRight: L.point(20, 75)
+                        });
                         item._marker = m;
                     }
                     marcadoresVisiveis.push(item._marker);
                 }
             }
 
-            // Adiciona todos de uma só vez (em lote)
             markersCluster.addLayers(marcadoresVisiveis);
 
-            // Mantém a contagem total do filtro + indicação dos visíveis
             document.getElementById('stat-total').textContent = `Monumentos: ${dadosFiltradosAtuais.length} (${marcadoresVisiveis.length} no ecrã)`;
             document.getElementById('stat-fotos').textContent = `Com foto: ${totalFotosFiltradas}`;
         }
@@ -892,6 +917,10 @@
         };
 
         function aplicarFiltros(ajustarZoom = false) {
+            map.closePopup();
+            popupAberto = false;
+            movimentoPendente = false;
+
             const concelhoSel = document.getElementById('select-concelho').value;
             const freguesiaSel = document.getElementById('select-freguesia').value;
             const tipologiaSel = document.getElementById('select-tipologia').value;
@@ -930,12 +959,16 @@
                 }
             }
 
-            atualizarMarcadoresNaJanela();
+            atualizarMarcadoresNaJanela(true);
         }
 
-        // Atualizar os marcadores visíveis sempre que o utilizador arrasta ou faz zoom no mapa
+        // Atualizar os marcadores visíveis sempre que o utilizador arrasta ou faz zoom (exceto com popup aberto)
         let timerMovimento = null;
         map.on('moveend', () => {
+            if (popupAberto) {
+                movimentoPendente = true;
+                return;
+            }
             clearTimeout(timerMovimento);
             timerMovimento = setTimeout(atualizarMarcadoresNaJanela, 120);
         });
