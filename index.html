@@ -10,25 +10,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>PRP - Património Religioso Popular</title>
-
-    <!-- Descrição para motores de busca (Google) -->
-    <meta name="description" content="Mapa interativo do projeto PRP - Património Religioso Popular (Alminhas Digital). Explore mais de 7 000 alminhas, nichos e cruzeiros georreferenciados em Portugal, com fotografias e fichas técnicas." />
-
-    <!-- Open Graph (Facebook e WhatsApp) -->
-    <meta property="og:type" content="website" />
-    <meta property="og:locale" content="pt_PT" />
-    <meta property="og:url" content="https://fmtcorreia-pixel.github.io/mapa_alminhas/" />
-    <meta property="og:title" content="PRP - Património Religioso Popular | Mapa Interativo" />
-    <meta property="og:description" content="Explore mais de 7 000 alminhas, nichos e cruzeiros georreferenciados em Portugal, com filtros por concelho e freguesia, fotografias e fichas técnicas." />
-    <meta property="og:image" content="https://fmtcorreia-pixel.github.io/mapa_alminhas/capa.jpg" />
-    <meta property="og:image:width" content="1200" />
-    <meta property="og:image:height" content="630" />
-
-    <!-- Cartão de pré-visualização (X / compatibilidade extra) -->
-    <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:title" content="PRP - Património Religioso Popular | Mapa Interativo" />
-    <meta name="twitter:description" content="Explore mais de 7 000 alminhas, nichos e cruzeiros georreferenciados em Portugal." />
-    <meta name="twitter:image" content="https://fmtcorreia-pixel.github.io/mapa_alminhas/capa.jpg" />
     
     <!-- Leaflet CSS -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
@@ -674,11 +655,7 @@
                 header: false,
                 skipEmptyLines: true,
                 complete: function(resDistrito) {
-                    try {
-                        processarDadosCompletos(resDistrito.data);
-                    } catch (e) {
-                        document.getElementById('loader').innerHTML = `<h3 style="color:#c0392b;">Erro ao processar dados</h3><p>${e.message}</p>`;
-                    }
+                    processarDadosCompletos(resDistrito.data);
                 },
                 error: function(err) {
                     document.getElementById('loader').innerHTML = `<h3 style="color:#c0392b;">Erro ao carregar aba DISTRITO</h3><p>Verifique se publicou na Web como CSV.</p>`;
@@ -1017,7 +994,7 @@
             aplicarFiltros(true);
         });
 
-        document.addEventListener('DOMContentLoaded', iniciarCarregamentoDados);
+        window.onload = iniciarCarregamentoDados;
     </script>
 </body>
 </html>
