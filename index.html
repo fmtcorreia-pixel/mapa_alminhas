@@ -1,3 +1,769 @@
+
+Gemini
+Novo chat
+Biblioteca
+Imagens
+Agendado
+Estudantes
+
+Mais
+Novo notebook
+Budismo tibetano
+Iconografia cristã
+os CASALDEIRA
+Todos os notebooks
+Dicas melhoria projeto
+Assistência do Gemini ao Projeto PRP
+DESCRIÇÃO Alminhas
+Trocar T-Roc por ID.Cross?
+Como Publicar Slides no Facebook
+Integrar Google Analytics no GitHub Pages
+Notificações da Autoridade Tributária no Telemóvel
+Património Religioso Popular: Bibliografia e Inventário
+Consegues fazer uma app que me alerte no meu telemóvel: 1. Que estou perto de uma alminha. 2. Visual
+Vantagens do AI Studio para Projetos
+Estimativa de Medidas do Nicho
+Estado do PRP no GitHub
+Overview of Google AI Studio
+Gemini Argon no Projeto Alminhas Digital
+Como Criar Mapa no QGIS
+Como Promover o Google Sites
+O que é Posturografia Dinâmica
+Estudo e Roteiro Local em Espargo
+Ficha de Matemática: 5º Ano
+Sugestões de Pesquisa e Exploração
+Procura de Fontes para Caderno
+História e Geografia 5.º Ano
+Fichas de Estudo 5.º Ano
+Data Studio versus Looker Studio
+Melhorar Layout de Alminhas no My Maps
+Risco de Perda Dramático
+Como Cancelar Seguro Multicare
+Ensinamentos de Thich Nhat Hanh
+
+Atividade
+Santa Maria da Feira, Portugal
+Do seu endereço IP
+Conversa com o Gemini
+tudo correto depois de instalado o no script. Conclusão: 1- as linhas não são arrastadas quando entra uma linha nova
+
+Excelente notícia — ficou resolvido na raiz. A partir de agora, como a folha DISTRITO deixou de depender de fórmulas dinâmicas ao lado de colunas fixas, cada ID leva sempre consigo a respetiva foto (Coluna U) e ficha técnica (Coluna V), mesmo quando entram novos monumentos no meio dos 13 distritos.
+
+O que ganha no dia a dia com esta mudança
+Zero desalinhamentos: Entradas novas nos distritos entram com as colunas U e V limpas, prontas a receber os links da Drive ou manuais.
+
+CSV mais fiável para o Mapa_Alminhas: Como já não há 13 IMPORTRANGE a recalcular em simultâneo, o mapa no GitHub carrega mais depressa e sem risco de falhas temporárias #REF!.
+
+Fluxo simples: Sempre que atualizar os distritos, basta correr 🏛️ PRP > 1. Sincronizar 13 Distritos e, quando tiver fotos/fichas novas na Drive, correr 2. Preencher Links da Drive.
+
+Quer configurar a sincronização automática todas as madrugadas para não ter de clicar no menu?
+
+Sim
+Os links da Drive são preenchidos manualmente na aba "DISTRITO". Então: 1. posso apagar a fórmula na célula A1, da aba "DISTRITO"?; 2. posso carregar manualmente os links na aba "DISTRITO" com as colunas E a T escondidas?; 3. Posso usar ao mesmo tempo um filtro na aba "DISTRITO" para agilizar o concelho que estou a lançar?
+
+Sim às três perguntas — com apenas um pequeno cuidado prático no ponto 3:
+
+Apagar a fórmula na célula A1: Sim, deve apagá-la. Aliás, se já executou a opção 1. Sincronizar 13 Distritos, o próprio script já limpou a fórmula e substituiu A1 pelo cabeçalho em texto simples. A partir de agora, a aba DISTRITO não deve ter nenhuma fórmula =QUERY em A1, pois é o script que passa a trazer os dados dos 13 distritos.
+
+Esconder as colunas E a T enquanto cola links em U e V: Sim, sem qualquer problema. Ocultar colunas no Google Sheets é apenas visual. O Apps Script continua a ler e gravar todas as 22 colunas normalmente, e o ficheiro CSV publicado para o Mapa_Alminhas também exporta todas as colunas (visíveis ou ocultas) sem falhas. É uma excelente forma de ter o ID, o Lugar, a Freguesia e o Concelho logo ao lado das colunas U e V.
+
+Usar filtro na aba DISTRITO para agilizar o concelho: Sim, pode usar, mas prefira uma destas duas regras:
+
+Opção mais segura: Use Dados > Criar vista de filtro em vez do filtro normal. A vista de filtro só altera o que vê no seu ecrã e não interfere com o script nem com a estrutura da folha.
+
+Se usar o filtro normal (ícone do funil): Pode filtrar o concelho e colar os links em U e V à vontade; apenas desative o filtro (ou selecione "Tudo") antes de voltar a correr a opção 1. Sincronizar 13 Distritos, para evitar que linhas novas fiquem ocultas depois da atualização.
+
+Quer que eu adapte o script para desativar automaticamente qualquer filtro ativo antes de sincronizar os 13 distritos?
+
+Sim
+agora com este script novo, sempre que adiciono um ID novo tenho de correr sempre a opção 1. Sincronizar 13 Distritos. Certo?
+
+Certo. Como a fórmula =QUERY foi substituída pelo script, a aba DISTRITO da folha mestre deixou de puxar os dados em tempo real.
+
+Na prática, porém, não precisa de correr o script a cada monumento isolado:
+
+Em lote: Pode lançar 5, 10 ou 50 registos novos nas folhas dos distritos e correr 🏛️ PRP > 1. Sincronizar 13 Distritos apenas uma vez no final, quando quiser que eles apareçam na folha mestre (para colar os links em U e V e atualizar o Mapa_Alminhas).
+
+Automático (opcional): Se preferir não depender da memória, pode agendar um acionador no Apps Script para a sincronização correr sozinha todas as noites — continuando a poder clicar no botão manual sempre que quiser um registo disponível no momento.
+
+Quer configurar agora o acionador automático para sincronizar os 13 distritos sozinho todas as noites?
+
+Sim
+Adapta a função sincronizarDistritos no meu Apps Script para remover automaticamente qualquer filtro ativo na aba DISTRITO antes de atualizar os dados.
+
+Para garantir que nenhum filtro ativo esconde linhas novas ou interfere com a limpeza da folha, basta adicionar o bloco sheet.getFilter() logo no início da função sincronizarDistritos().
+
+Substitua apenas a função sincronizarDistritos() no seu Apps Script por esta versão:
+
+JavaScript
+// ============================================================================
+// PASSO 1: IMPORTAR OS 13 DISTRITOS SEM DESALINHAR AS COLUNAS U E V
+// ============================================================================
+function sincronizarDistritos() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const sheet = ss.getSheetByName(NOME_ABA);
+
+  if (!sheet) {
+    SpreadsheetApp.getUi().alert("Erro: Não foi encontrada a aba '" + NOME_ABA + "'.");
+    return;
+  }
+
+  // 0. Remove automaticamente qualquer filtro ativo antes de ler/atualizar
+  const filtroAtivo = sheet.getFilter();
+  if (filtroAtivo) {
+    filtroAtivo.remove();
+  }
+
+  // 1. Memoriza os links atuais (U e V) associados a cada ID (Coluna A)
+  const mapaLinks = {};
+  const ultimaLinhaAtual = sheet.getLastRow();
+  let cabecalhoU = "FOTO";
+  let cabecalhoV = "FICHA";
+
+  if (ultimaLinhaAtual >= 1) {
+    const dadosAtuais = sheet.getRange(1, 1, ultimaLinhaAtual, 22).getValues();
+    cabecalhoU = String(dadosAtuais[0][20] || "FOTO").trim();
+    cabecalhoV = String(dadosAtuais[0][21] || "FICHA").trim();
+
+    for (let i = 1; i < dadosAtuais.length; i++) {
+      const id = String(dadosAtuais[i][0] || "").trim();
+      let foto = String(dadosAtuais[i][20] || "").trim();
+      const ficha = String(dadosAtuais[i][21] || "").trim();
+      if (foto.includes(",")) foto = foto.split(",")[0].trim();
+
+      if (id && (foto || ficha)) {
+        mapaLinks[id] = [foto, ficha];
+      }
+    }
+  }
+
+  // 2. Importa A:T das 13 folhas de distritos e encaixa U e V pelo ID
+  const resultadoFinal = [];
+
+  for (let d = 0; d < IDS_DISTRITOS.length; d++) {
+    try {
+      const ssOrigem = SpreadsheetApp.openById(IDS_DISTRITOS[d]);
+      const abaOrigem = ssOrigem.getSheetByName("DISTRITO");
+      if (!abaOrigem) continue;
+
+      const ultimaLinha = abaOrigem.getLastRow();
+      if (ultimaLinha < 2) continue;
+
+      const inicio = (d === 0) ? 1 : 2;
+      const valores = abaOrigem.getRange(inicio, 1, ultimaLinha - inicio + 1, 20).getValues();
+
+      for (let i = 0; i < valores.length; i++) {
+        const linha = valores[i];
+
+        if (d === 0 && i === 0) {
+          resultadoFinal.push([...linha, cabecalhoU, cabecalhoV]);
+          continue;
+        }
+
+        // Equivalente a "Where Col2 is not null"
+        if (linha[1] === "" || linha[1] === null) continue;
+
+        const id = String(linha[0] || "").trim();
+        const links = mapaLinks[id] || ["", ""];
+        resultadoFinal.push([...linha, links[0], links[1]]);
+      }
+    } catch (e) {
+      Logger.log("Erro ao ler distrito " + IDS_DISTRITOS[d] + ": " + e.message);
+    }
+  }
+
+  // 3. Só substitui a folha se tiver importado dados válidos
+  if (resultadoFinal.length > 1) {
+    if (typeof guardarBackupLinks === "function") {
+      guardarBackupLinks(sheet);
+    }
+    sheet.clearContents();
+    sheet.getRange(1, 1, resultadoFinal.length, 22).setValues(resultadoFinal);
+
+    // Opcional: volta a deixar os botões de filtro ativos no cabeçalho (sem filtrar nada)
+    sheet.getRange(1, 1, resultadoFinal.length, 22).createFilter();
+
+    Logger.log("Sincronização concluída: " + (resultadoFinal.length - 1) + " registos alinhados.");
+  } else {
+    SpreadsheetApp.getUi().alert("Atenção: Não foi possível ler os distritos. Os dados atuais foram preservados.");
+  }
+}
+O que esta alteração faz na prática
+Remove o filtro antes de sincronizar: Mesmo que se esqueça de limpar um filtro de concelho, o script trata disso sozinho.
+
+Recria o filtro limpo no fim: A linha createFilter() volta a colocar os ícones do funil na linha 1 já abrangendo todas as linhas novas, sem nenhum concelho oculto (se preferir que fique sem filtro nenhum, basta apagar essa linha).
+
+Compatível com o backup: Se tiver adicionado a função guardarBackupLinks, ela é chamada automaticamente antes de limpar a folha.
+
+Quer adicionar também um botão no menu PRP para esconder e mostrar rapidamente as colunas E a T?
+
+Sim
+Explica-me passo a passo como configurar um acionador no Apps Script para a função sincronizarDistritos correr automaticamente todas as noites.
+
+Para que a folha list invent PORTUGAL sincronize os 13 distritos sozinha todas as madrugadas — mesmo com o computador desligado — basta criar um acionador de tempo no editor do Apps Script.
+
+1
+Abrir o editor do Apps Script
+Na folha list invent PORTUGAL, vá ao menu superior e clique em Extensões → Apps Script.
+
+2
+Aceder ao painel de Acionadores
+Na barra lateral esquerda do editor, clique no ícone do relógio (Acionadores).
+
+3
+Criar um novo acionador
+No canto inferior direito do ecrã, clique no botão azul + Adicionar acionador.
+
+4
+Configurar a função e o horário
+Preencha os campos da janela exatamente com estas opções:
+
+Escolha a função a executar: sincronizarDistritos
+
+Escolha a implementação a executar: Head
+
+Selecione a origem do evento: Baseado no tempo
+
+Selecione o tipo de acionador baseado no tempo: Temporizador diário
+
+Selecione a hora do dia: 03:00 às 04:00 (ou outra hora da madrugada em que não esteja a trabalhar na folha)
+
+Definições de notificação de falhas: Notificar-me diariamente (assim recebe um e-mail se algum dia um dos distritos falhar)
+
+5
+Guardar e confirmar permissões
+Clique em Guardar. Se o Google pedir novamente autorização de acesso, aceite com a sua conta. O acionador fica imediatamente ativo na lista.
+
+Como confirmar que correu bem
+Histórico de execuções: Na manhã seguinte, abra o ícone Execuções (lista com barras na barra lateral esquerda do Apps Script). Deve ver uma linha com sincronizarDistritos, tipo Baseado no tempo e estado Concluído.
+
+Uso manual mantido: O acionador noturno não substitui o botão do menu. Pode continuar a clicar em 🏛️ PRP → 1. Sincronizar 13 Distritos a qualquer hora do dia sempre que lançar monumentos novos e quiser vê-los logo no Mapa_Alminhas.
+
+Quer também agendar o preenchimento automático dos links da Drive logo a seguir à sincronização?
+
+Sim
+Adiciona ao menu PRP no Apps Script uma opção para esconder e mostrar rapidamente as colunas E a T com um só clique.
+
+Para alternar rapidamente entre a vista completa e a vista reduzida (deixando A:D logo ao lado de U:V), substitua a função onOpen() atual e adicione a nova função alternarColunasET() ao seu Apps Script.
+
+1. Substitua a função onOpen()
+JavaScript
+function onOpen() {
+  SpreadsheetApp.getUi()
+    .createMenu("🏛️ PRP")
+    .addItem("1. Sincronizar 13 Distritos (Manter U e V alinhados)", "sincronizarDistritos")
+    .addItem("2. Preencher Links da Drive (Só células vazias)", "preencherLinksDriveAutomatico")
+    .addSeparator()
+    .addItem("👁️ Esconder / Mostrar Colunas E a T", "alternarColunasET")
+    .addSeparator()
+    .addItem("3. Limpar U e V e Reconstruir tudo da Drive", "limparEReconstruirLinksDrive")
+    .addToUi();
+}
+2. Cole esta nova função no final do script
+JavaScript
+// ============================================================================
+// ESCONDER OU MOSTRAR RAPIDAMENTE AS COLUNAS E A T (16 COLUNAS)
+// ============================================================================
+function alternarColunasET() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const sheet = ss.getSheetByName(NOME_ABA);
+  if (!sheet) return;
+
+  // Coluna E = 5; de E (5) até T (20) são 16 colunas
+  const estaEscondida = sheet.isColumnHiddenByUser(5);
+
+  if (estaEscondida) {
+    sheet.showColumns(5, 16);
+  } else {
+    sheet.hideColumns(5, 16);
+  }
+}
+Guarde o script e recarregue a folha list invent PORTUGAL. Sempre que clicar em 🏛️ PRP → 👁️ Esconder / Mostrar Colunas E a T, o script deteta automaticamente se a coluna E está oculta ou visível e faz o inverso.
+
+Quer também um aviso automático no fim da sincronização caso existam IDs duplicados na coluna A?
+
+Sim
+faz o código completo para esconder as colunas E a T
+
+Aqui tem o código completo e unificado do Apps Script. Basta apagar tudo o que tem atualmente no editor (Extensões → Apps Script), colar este bloco, guardar e recarregar a folha list invent PORTUGAL.
+
+Já inclui:
+
+O botão 👁️ Esconder / Mostrar Colunas E a T no menu 🏛️ PRP;
+
+A remoção e recriação automática de filtros durante a sincronização;
+
+O backup automático dos links U e V na aba BACKUP_LINKS_UV antes de qualquer atualização;
+
+O seu robô original de preenchimento de links da Drive.
+
+JavaScript
+// ============================================================================
+// CONFIGURAÇÃO GERAL
+// ============================================================================
+const PASTA_RAIZ_ID = "1oZFNTcJSPCBhnLi93q836G-u1ggTHAkq";
+const NOME_ABA = "DISTRITO";
+
+const IDS_DISTRITOS = [
+  "1nIXmWwx3Cev75_jNnno4TXq76P8Gn1Jfflhq_KVp7zI",
+  "1kQVrceBPtYYphhn_g0EBB0dAyBz3-sHGZAMrr6Fvmm4",
+  "1w0j0oP1WjxPAVfeenxEn26rZY1B2pnq1d7KqU70qy_4",
+  "1RsT7fV4LWbGKjLx8SS2MyccQ56ydYs9h3Ly7NQUHyZY",
+  "1KOhp3hqYqTih8WvYC6cS5kWMXtDg4VaUvzlzwGLH0UA",
+  "1MC-uYzzts2HhY8KLF8UryX9LgzqxXr1ffNUkKTzKW_E",
+  "1EGRHbCf_3i3DhL8NlK5funjlIA8E3qtdvgTMl-cKeyQ",
+  "1ZjGz8W8jNi4Kdebn6O1B9yhY-iW1rtqH0jF7C5InIwc",
+  "18Di3X8f2R0WtkVbAAmOs42XkuErsemRD0k4Ck8pLMqY",
+  "1PBUHiLR5m3HJzXe4NqhdOOHqvA6iUcIW5L_bKYaNlSw",
+  "1AFrCjfFoxMJA2Ptl4WxvZk0b7aEkv1dmeBM1A4Bgadw",
+  "14YrpevCN_Ssu63FxGTlq88eMY0WErCU9JXPPX5HTAL0",
+  "1oPY6EYhs3tzNJ9YIvLtCqeN12iDTUaQXc52p1NI_BTk"
+];
+
+// ============================================================================
+// MENU PERSONALIZADO NO GOOGLE SHEETS
+// ============================================================================
+function onOpen() {
+  SpreadsheetApp.getUi()
+    .createMenu("🏛️ PRP")
+    .addItem("1. Sincronizar 13 Distritos (Manter U e V alinhados)", "sincronizarDistritos")
+    .addItem("2. Preencher Links da Drive (Só células vazias)", "preencherLinksDriveAutomatico")
+    .addSeparator()
+    .addItem("👁️ Esconder / Mostrar Colunas E a T", "alternarColunasET")
+    .addSeparator()
+    .addItem("3. Limpar U e V e Reconstruir tudo da Drive", "limparEReconstruirLinksDrive")
+    .addToUi();
+}
+
+// ============================================================================
+// ESCONDER OU MOSTRAR RAPIDAMENTE AS COLUNAS E A T (16 COLUNAS)
+// ============================================================================
+function alternarColunasET() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const sheet = ss.getSheetByName(NOME_ABA);
+  if (!sheet) return;
+
+  // Coluna E = 5; de E (5) até T (20) são 16 colunas
+  const estaEscondida = sheet.isColumnHiddenByUser(5);
+
+  if (estaEscondida) {
+    sheet.showColumns(5, 16);
+  } else {
+    sheet.hideColumns(5, 16);
+  }
+}
+
+// ============================================================================
+// PASSO 1: IMPORTAR OS 13 DISTRITOS SEM DESALINHAR AS COLUNAS U E V
+// ============================================================================
+function sincronizarDistritos() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const sheet = ss.getSheetByName(NOME_ABA);
+
+  if (!sheet) {
+    Logger.log("Erro: Não foi encontrada a aba '" + NOME_ABA + "'.");
+    return;
+  }
+
+  // 0. Remove automaticamente qualquer filtro ativo antes de ler/atualizar
+  const filtroAtivo = sheet.getFilter();
+  if (filtroAtivo) {
+    filtroAtivo.remove();
+  }
+
+  // 1. Memoriza os links atuais (U e V) associados a cada ID (Coluna A)
+  const mapaLinks = {};
+  const ultimaLinhaAtual = sheet.getLastRow();
+  let cabecalhoU = "FOTO";
+  let cabecalhoV = "FICHA";
+
+  if (ultimaLinhaAtual >= 1) {
+    const dadosAtuais = sheet.getRange(1, 1, ultimaLinhaAtual, 22).getValues();
+    cabecalhoU = String(dadosAtuais[0][20] || "FOTO").trim();
+    cabecalhoV = String(dadosAtuais[0][21] || "FICHA").trim();
+
+    for (let i = 1; i < dadosAtuais.length; i++) {
+      const id = String(dadosAtuais[i][0] || "").trim();
+      let foto = String(dadosAtuais[i][20] || "").trim();
+      const ficha = String(dadosAtuais[i][21] || "").trim();
+      if (foto.includes(",")) foto = foto.split(",")[0].trim();
+
+      if (id && (foto || ficha)) {
+        mapaLinks[id] = [foto, ficha];
+      }
+    }
+  }
+
+  // 2. Importa A:T das 13 folhas de distritos e encaixa U e V pelo ID
+  const resultadoFinal = [];
+
+  for (let d = 0; d < IDS_DISTRITOS.length; d++) {
+    try {
+      const ssOrigem = SpreadsheetApp.openById(IDS_DISTRITOS[d]);
+      const abaOrigem = ssOrigem.getSheetByName("DISTRITO");
+      if (!abaOrigem) continue;
+
+      const ultimaLinha = abaOrigem.getLastRow();
+      if (ultimaLinha < 2) continue;
+
+      const inicio = (d === 0) ? 1 : 2;
+      const valores = abaOrigem.getRange(inicio, 1, ultimaLinha - inicio + 1, 20).getValues();
+
+      for (let i = 0; i < valores.length; i++) {
+        const linha = valores[i];
+
+        if (d === 0 && i === 0) {
+          resultadoFinal.push([...linha, cabecalhoU, cabecalhoV]);
+          continue;
+        }
+
+        // Equivalente a "Where Col2 is not null"
+        if (linha[1] === "" || linha[1] === null) continue;
+
+        const id = String(linha[0] || "").trim();
+        const links = mapaLinks[id] || ["", ""];
+        resultadoFinal.push([...linha, links[0], links[1]]);
+      }
+    } catch (e) {
+      Logger.log("Erro ao ler distrito " + IDS_DISTRITOS[d] + ": " + e.message);
+    }
+  }
+
+  // 3. Só substitui a folha se tiver importado dados válidos
+  if (resultadoFinal.length > 1) {
+    guardarBackupLinks(sheet);
+    sheet.clearContents();
+    sheet.getRange(1, 1, resultadoFinal.length, 22).setValues(resultadoFinal);
+
+    // Volta a deixar os botões de filtro ativos no cabeçalho (sem filtrar nada)
+    sheet.getRange(1, 1, resultadoFinal.length, 22).createFilter();
+
+    Logger.log("Sincronização concluída: " + (resultadoFinal.length - 1) + " registos alinhados.");
+  } else {
+    Logger.log("Atenção: Não foi possível ler os distritos. Os dados atuais foram preservados.");
+  }
+}
+
+// ============================================================================
+// SEGURANÇA AUTOMÁTICA: GUARDA CÓPIA DOS LINKS U E V NUMA ABA SEPARADA
+// ============================================================================
+function guardarBackupLinks(sheetOrigem) {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const nomeBackup = "BACKUP_LINKS_UV";
+  let abaBackup = ss.getSheetByName(nomeBackup);
+
+  if (!abaBackup) {
+    abaBackup = ss.insertSheet(nomeBackup);
+  }
+
+  const ultimaLinha = sheetOrigem.getLastRow();
+  if (ultimaLinha < 2) return;
+
+  const dados = sheetOrigem.getRange(2, 1, ultimaLinha - 1, 22).getValues();
+  const dataHora = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), "yyyy-MM-dd HH:mm:ss");
+  const linhasBackup = [["ID", "FOTO (Coluna U)", "FICHA (Coluna V)", "Data do Backup"]];
+
+  for (let i = 0; i < dados.length; i++) {
+    const id = String(dados[i][0] || "").trim();
+    const foto = String(dados[i][20] || "").trim();
+    const ficha = String(dados[i][21] || "").trim();
+
+    if (id && (foto || ficha)) {
+      linhasBackup.push([id, foto, ficha, dataHora]);
+    }
+  }
+
+  if (linhasBackup.length > 1) {
+    abaBackup.clearContents();
+    abaBackup.getRange(1, 1, linhasBackup.length, 4).setValues(linhasBackup);
+  }
+}
+
+// ============================================================================
+// PASSO 2: ROBÔ DE PREENCHIMENTO DE LINKS DA DRIVE
+// ============================================================================
+function preencherLinksDriveAutomatico() {
+  const tempoInicio = new Date().getTime();
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const sheet = ss.getSheetByName(NOME_ABA);
+
+  if (!sheet) {
+    Logger.log("Erro: Não foi encontrada a aba '" + NOME_ABA + "'.");
+    return;
+  }
+
+  const dados = sheet.getDataRange().getValues();
+  const totalLinhas = dados.length;
+  const mapaRegistos = {};
+
+  for (let i = 1; i < totalLinhas; i++) {
+    const idCompleto = String(dados[i][0] || "").trim();
+    const freguesia  = normalizarTexto(String(dados[i][2] || ""));
+    const concelho   = normalizarTexto(String(dados[i][3] || ""));
+
+    if (!idCompleto) continue;
+
+    const matchDigitos = idCompleto.match(/(\d{4})/);
+    if (matchDigitos) {
+      const codigo4 = matchDigitos[1];
+      if (!mapaRegistos[codigo4]) {
+        mapaRegistos[codigo4] = [];
+      }
+      mapaRegistos[codigo4].push({
+        index: i,
+        id: idCompleto,
+        freguesia: freguesia,
+        concelho: concelho
+      });
+    }
+  }
+
+  const colunaFotos = [];
+  const colunaFichas = [];
+  for (let i = 0; i < totalLinhas; i++) {
+    let valFoto = String(dados[i][20] || "").trim();
+    if (valFoto.includes(",")) {
+      valFoto = valFoto.split(",")[0].trim();
+    }
+    colunaFotos.push([valFoto]);
+    colunaFichas.push([String(dados[i][21] || "").trim()]);
+  }
+
+  let atualizados = 0;
+  const pastaRaiz = DriveApp.getFolderById(PASTA_RAIZ_ID);
+
+  function varrerPasta(pasta, caminhoNomes) {
+    if (new Date().getTime() - tempoInicio > 280000) {
+      Logger.log("Limite de tempo quase atingido. A guardar progresso atual...");
+      return false;
+    }
+
+    const nomePasta = pasta.getName();
+    const nomePastaNorm = normalizarTexto(nomePasta);
+    const caminhoAtual = caminhoNomes + " " + nomePastaNorm;
+    const matchPasta = nomePasta.match(/(\d{4})/);
+
+    const ficheiros = pasta.getFiles();
+    while (ficheiros.hasNext()) {
+      const f = ficheiros.next();
+      const nomeFicheiro = f.getName();
+
+      const matchFich = nomeFicheiro.match(/(\d{4})/);
+      const cod4 = matchFich ? matchFich[1] : (matchPasta ? matchPasta[1] : null);
+      if (!cod4) continue;
+
+      const candidatos = mapaRegistos[cod4];
+      if (!candidatos || candidatos.length === 0) continue;
+
+      let registoAlvo = null;
+      if (candidatos.length === 1) {
+        registoAlvo = candidatos[0];
+      } else {
+        registoAlvo = candidatos.find(c =>
+          (c.freguesia && caminhoAtual.includes(c.freguesia)) ||
+          (c.concelho && caminhoAtual.includes(c.concelho))
+        );
+        if (!registoAlvo) {
+          const nomeFichNorm = normalizarTexto(nomeFicheiro);
+          registoAlvo = candidatos.find(c => c.freguesia && nomeFichNorm.includes(c.freguesia));
+        }
+      }
+
+      if (registoAlvo) {
+        const mime = f.getMimeType().toLowerCase();
+        const nomeLower = nomeFicheiro.toLowerCase();
+        const url = f.getUrl();
+
+        if (mime.includes("image") || nomeLower.endsWith(".jpg") || nomeLower.endsWith(".jpeg") || nomeLower.endsWith(".png") || nomeLower.endsWith(".webp")) {
+          const valorAtualU = String(colunaFotos[registoAlvo.index][0] || "");
+          if (!valorAtualU) {
+            colunaFotos[registoAlvo.index][0] = url;
+            atualizados++;
+          }
+        } else if (mime.includes("pdf") || mime.includes("document") || mime.includes("word") || nomeLower.endsWith(".pdf") || nomeLower.endsWith(".doc") || nomeLower.endsWith(".docx")) {
+          const valorAtualV = String(colunaFichas[registoAlvo.index][0] || "");
+          if (!valorAtualV) {
+            colunaFichas[registoAlvo.index][0] = url;
+            atualizados++;
+          }
+        }
+      }
+    }
+
+    const subpastas = pasta.getFolders();
+    while (subpastas.hasNext()) {
+      const sub = subpastas.next();
+      const continuar = varrerPasta(sub, caminhoAtual);
+      if (!continuar) return false;
+    }
+
+    return true;
+  }
+
+  const concluiuTudo = varrerPasta(pastaRaiz, "");
+
+  sheet.getRange(1, 21, totalLinhas, 1).setValues(colunaFotos);
+  sheet.getRange(1, 22, totalLinhas, 1).setValues(colunaFichas);
+
+  if (concluiuTudo) {
+    Logger.log("CONCLUÍDO COM SUCESSO! Foram adicionados " + atualizados + " links novos.");
+  } else {
+    Logger.log("PAUSA DE SEGURANÇA: Foram guardados " + atualizados + " links novos. Volte a executar para continuar.");
+  }
+}
+
+// ============================================================================
+// PASSO 3 (OPCIONAL): LIMPAR DESALINHAMENTOS ANTIGOS E RECONSTRUIR DA DRIVE
+// ============================================================================
+function limparEReconstruirLinksDrive() {
+  const ui = SpreadsheetApp.getUi();
+  const resposta = ui.alert(
+    "Confirmar reconstrução",
+    "Isto vai guardar um backup e depois apagar todos os links das colunas U e V (a partir da linha 2) para os voltar a preencher a partir da Drive. Continuar?",
+    ui.ButtonSet.YES_NO
+  );
+  if (resposta !== ui.Button.YES) return;
+
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const sheet = ss.getSheetByName(NOME_ABA);
+  const ultimaLinha = sheet.getLastRow();
+  if (ultimaLinha > 1) {
+    guardarBackupLinks(sheet);
+    sheet.getRange(2, 21, ultimaLinha - 1, 2).clearContent();
+  }
+  preencherLinksDriveAutomatico();
+}
+
+function normalizarTexto(texto) {
+  if (!texto) return "";
+  return texto
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9\s]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+Quer adicionar também um botão no menu PRP para restaurar os links U e V a partir da aba BACKUP_LINKS_UV caso precise?
+
+Sim
+Adapta o script para desativar automaticamente qualquer filtro ativo antes de sincronizar os 13 distritos?
+
+O código completo da resposta anterior já inclui essa proteção na função sincronizarDistritos(). Logo no início, antes de ler ou limpar a folha, ele executa este bloco:
+
+JavaScript
+// 0. Remove automaticamente qualquer filtro ativo antes de ler/atualizar
+const filtroAtivo = sheet.getFilter();
+if (filtroAtivo) {
+  filtroAtivo.remove();
+}
+Dois ajustes opcionais que pode querer fazer
+Se preferir que a folha fique totalmente sem filtro no final:
+No fim da função sincronizarDistritos(), o script atual tem esta linha para voltar a colocar os ícones do funil na linha 1 (limpos, sem nenhum concelho filtrado):
+
+JavaScript
+sheet.getRange(1, 1, resultadoFinal.length, 22).createFilter();
+Se quiser que a folha fique sem filtro nenhum depois de sincronizar, basta apagar essa linha.
+
+Se também quiser remover filtros antes de correr o robô da Drive:
+Na função preencherLinksDriveAutomatico(), cole o mesmo bloco logo a seguir à verificação if (!sheet) { ... }:
+
+JavaScript
+const filtroAtivo = sheet.getFilter();
+if (filtroAtivo) {
+  filtroAtivo.remove();
+}
+Se já colou o código completo anterior no Apps Script, não precisa de alterar mais nada para a sincronização dos 13 distritos desativar filtros automaticamente.
+
+Quer testar se a sincronização está a funcionar corretamente com um filtro ativo?
+
+Sim
+Já conheces o meu projeto Alminhas Digital. Dá dicas que possa melhorar em termos orgânicos e de exposição pública.
+
+Com mais de 7 000 monumentos georreferenciados, o Alminhas Digital / PRP já tem o mais difícil: um acervo único, rigoroso e atualizado. Para multiplicar o alcance orgânico e a exposição pública sem precisar de orçamento, o foco deve estar em fazer o Google encontrar cada concelho/freguesia e em levar o mapa às comunidades locais.
+
+1. Crescimento Orgânico (SEO Local)
+Criar páginas ou secções por Concelho/Distrito no Google Sites: O Google tem dificuldade em indexar o texto que está dentro do mapa interativo (CSV/Leaflet). Criar páginas simples por distrito ou concelho com um pequeno texto introdutório e o link direto do mapa já filtrado (ex.: ?concelho=Vale%20de%20Cambra) faz com que o portal apareça quando alguém pesquisa "alminhas em Vale de Cambra" ou "cruzeiros de Arões".
+
+Registar o portal no Google Search Console: Ferramenta gratuita da Google que permite submeter o mapa do site, ver que termos as pessoas pesquisam para chegar ao portal e corrigir páginas que não estejam a ser indexadas.
+
+Usar um domínio próprio (.pt): Passar de [sites.google.com/view/alminhas](https://sites.google.com/view/alminhas) para um domínio próprio (ex.: alminhasdigital.pt ou patrimonioreligiosopopular.pt) custa cerca de 10 € a 15 €/ano, liga-se diretamente ao Google Sites sem mudar nada na estrutura, aumenta a confiança de autarquias e melhora o posicionamento no Google.
+
+Otimizar metadados no Mapa_Alminhas: Adicionar uma <meta name="description"> e etiquetas Open Graph (og:title, og:description, og:image) no index.html do GitHub Pages. Assim, sempre que o link do mapa for partilhado no Facebook ou WhatsApp, aparece uma imagem atrativa e um resumo claro em vez de um link vazio.
+
+2. Exposição Pública e Redes Sociais
+Partilha cirúrgica em grupos locais do Facebook: É onde está o público mais interessado neste património (moradores, emigrantes, historiadores locais). Publicar uma fotografia de uma alminha ou cruzeiro num grupo da respetiva freguesia ou concelho, com 3 linhas de história e o link direto para o mapa desse concelho, gera dezenas de partilhas orgânicas e comentários com memórias locais.
+
+Série regular "Monumento da Semana": Escolher um registo com boa fotografia e inscrição interessante (ou uma curiosidade iconográfica) e publicar sempre no mesmo dia da semana, ligando à ficha técnica e ao mapa.
+
+Vídeos curtos ou carrosséis de imagens: Mostrar o "antes e depois" de uma leitura epigráfica difícil ou um roteiro rápido de 3 alminhas numa freguesia funciona muito bem em carrosséis de fotos no Facebook e Instagram.
+
+3. Parcerias Institucionais e Presença no Terreno
+Juntas de Freguesia e Câmaras Municipais: Apresentar o projeto como um inventário gratuito já feito para o território deles. Muitas autarquias colocam um link direto no site oficial do município ou da junta quando percebem que o trabalho já está concluído e georreferenciado.
+
+Projeto-piloto com QR Codes (ex.: Arões): Propor a uma Junta de Freguesia a colocação de pequenas placas discretas com um QR Code junto a monumentos selecionados ou no edifício da Junta, apontando diretamente para o mapa ou para a ficha técnica no portal. É um excelente argumento para atrair imprensa regional.
+
+Imprensa regional e rádios locais: Jornais regionais valorizam muito projetos voluntários ligados à identidade local. Um pequeno comunicado de imprensa quando o projeto atingir um marco (ex.: "Inventário voluntário ultrapassa os 7 000 monumentos religiosos populares em Portugal") costuma gerar entrevistas e artigos que trazem tráfego qualificado e novos colaboradores.
+
+Escolas e Universidades: Contactar professores de História, Geografia ou clubes de património (ensino básico/secundário) e departamentos de História/Património. O mapa serve como ferramenta pedagógica pronta a usar.
+
+4. Transformar Visitantes em Colaboradores (Ciência Cidadã)
+Botão "Enviar uma Alminha / Corrigir Registo": Colocar um botão bem visível no Google Sites e no próprio Mapa_Alminhas ligado a um Google Forms simples (Localização/GPS, Foto, Concelho/Freguesia, Nome do autor).
+
+Crédito visível: Dar destaque ao nome de quem enviou na coluna AUTOR (A) (que já aparece no pop-up do mapa) incentiva as pessoas a fotografarem o património da sua terra e a partilharem o mapa com familiares e amigos.
+
+Por onde começar já esta semana
+O maior retorno com menor esforço imediato vem de três ações: adicionar as etiquetas Open Graph ao index.html do mapa (para partilhas bonitas no Facebook/WhatsApp), criar um Google Forms de colaboração e fazer 2 ou 3 partilhas em grupos locais com o link filtrado por concelho.
+
+De Assistência do Gemini ao Projeto PRP
+Adiciona as etiquetas meta description e Open Graph ao index.html do Mapa_Alminhas para que o link apareça com título, descrição e imagem quando partilhado no Facebook e WhatsApp.
+
+Cole o bloco de etiquetas abaixo dentro da secção <head> do seu index.html no GitHub, logo a seguir à linha <title>PRP - Património Religioso Popular</title>.
+
+HTML
+    <!-- Descrição para motores de busca (Google) -->
+    <meta name="description" content="Mapa interativo do projeto PRP - Património Religioso Popular (Alminhas Digital). Explore mais de 7 000 alminhas, nichos e cruzeiros georreferenciados em Portugal, com fotografias e fichas técnicas." />
+
+    <!-- Open Graph (Facebook e WhatsApp) -->
+    <meta property="og:type" content="website" />
+    <meta property="og:locale" content="pt_PT" />
+    <meta property="og:url" content="https://fmtcorreia-pixel.github.io/mapa_alminhas/" />
+    <meta property="og:title" content="PRP - Património Religioso Popular | Mapa Interativo" />
+    <meta property="og:description" content="Explore mais de 7 000 alminhas, nichos e cruzeiros georreferenciados em Portugal, com filtros por concelho e freguesia, fotografias e fichas técnicas." />
+    <meta property="og:image" content="https://fmtcorreia-pixel.github.io/mapa_alminhas/capa.jpg" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+
+    <!-- Cartão de pré-visualização (X / compatibilidade extra) -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="PRP - Património Religioso Popular | Mapa Interativo" />
+    <meta name="twitter:description" content="Explore mais de 7 000 alminhas, nichos e cruzeiros georreferenciados em Portugal." />
+    <meta name="twitter:image" content="https://fmtcorreia-pixel.github.io/mapa_alminhas/capa.jpg" />
+2 passos obrigatórios para a imagem aparecer
+Carregar a imagem de capa no GitHub:
+
+Escolha uma fotografia representativa (uma alminha em granito ou uma captura limpa do mapa) em formato horizontal (1200 × 630 píxeis é o ideal).
+
+Guarde o ficheiro com o nome exato capa.jpg (tudo em minúsculas) e com menos de 300 KB (o WhatsApp ignora frequentemente imagens demasiado pesadas).
+
+No seu repositório mapa_alminhas no GitHub, clique em Add file → Upload files, carregue o capa.jpg na mesma pasta onde está o index.html e clique em Commit changes.
+
+Atualizar a memória (cache) do Facebook:
+
+Como o link já foi partilhado antes, o Facebook pode continuar a mostrar a pré-visualização antiga durante dias.
+
+Para forçar a atualização imediata, abra o Depurador de Partilha do Facebook ([developers.facebook.com/tools/debug/](https://developers.facebook.com/tools/debug/)), cole [https://fmtcorreia-pixel.github.io/mapa_alminhas/](https://fmtcorreia-pixel.github.io/mapa_alminhas/), clique em Depurar e depois no botão Extrair novamente.
+
+Quer que eu devolva o index.html completo já com estas etiquetas inseridas para só ter de copiar e colar?
+
+Sim
+Devolve-me o código completo do index.html do Mapa_Alminhas já com as etiquetas meta description e Open Graph inseridas no sítio certo.
+
+Aqui tem o código completo do index.html do Mapa_Alminhas, já com as etiquetas meta description e Open Graph (Facebook e WhatsApp) inseridas no <head> e com a correção anterior do arrasto dos pop-ups mantida.
+
+Basta copiar tudo, substituir o conteúdo do seu index.html no GitHub e fazer Commit changes.
+
+HTML
 <!DOCTYPE html>
 <html lang="pt">
 <head>
@@ -571,22 +1337,22 @@
 
         const googleStreets = L.tileLayer('https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}', {
             maxZoom: 20,
-            attribution: '© Google Maps'
+            attribution: '&copy; Google Maps'
         }).addTo(map);
 
         const googleHybrid = L.tileLayer('https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}', {
             maxZoom: 20,
-            attribution: '© Google Maps Satellite'
+            attribution: '&copy; Google Maps Satellite'
         });
 
         const googleTerrain = L.tileLayer('https://mt1.google.com/vt/lyrs=p&x={x}&y={y}&z={z}', {
             maxZoom: 20,
-            attribution: '© Google Maps Terrain'
+            attribution: '&copy; Google Maps Terrain'
         });
 
         const satLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
             maxZoom: 19,
-            attribution: 'Tiles © Esri'
+            attribution: 'Tiles &copy; Esri'
         });
 
         const baseLayers = {
@@ -720,4 +1486,300 @@
                 const esmolas      = String(r[11] || "").trim();
                 const protecao     = String(r[12] || "").trim();
                 const altura       = String(r[13] || "").trim();
-                const largura      = String(r
+                const largura      = String(r[14] || "").trim();
+                const profundidade = String(r[15] || "").trim();
+                const tipologia    = String(r[16] || "").trim();
+                const dataAtualiz  = String(r[17] || "").trim();
+                const referencias  = String(r[18] || "").trim();
+                const obs          = String(r[19] || "").trim();
+                
+                let foto  = String(r[idxFoto] || "").trim();
+                let ficha = String(r[idxFicha] || "").trim();
+                const temFoto = Boolean(foto && foto.includes("http"));
+
+                if (concelho) {
+                    concelhosContagem[concelho] = (concelhosContagem[concelho] || 0) + 1;
+                }
+
+                todosDadosGlobais.push({
+                    uid: i,
+                    id, lugar, freguesia, concelho, distrito, painel, cronologia,
+                    lat, lon, descricao, autor, esmolas, protecao,
+                    altura, largura, profundidade, tipologia, dataAtualiz,
+                    referencias, obs,
+                    foto, ficha, temFoto
+                });
+            }
+
+            const selectConcelho = document.getElementById('select-concelho');
+            selectConcelho.innerHTML = '<option value="TODOS">Todos os Concelhos</option>';
+            Object.keys(concelhosContagem).sort((a, b) => a.localeCompare(b, 'pt')).forEach(c => {
+                const opt = document.createElement('option');
+                opt.value = c;
+                opt.textContent = `${c} (${concelhosContagem[c]})`;
+                selectConcelho.appendChild(opt);
+            });
+
+            const urlParams = new URLSearchParams(window.location.search);
+            const concelhoUrl = urlParams.get('concelho');
+            if (concelhoUrl) {
+                for (let i = 0; i < selectConcelho.options.length; i++) {
+                    if (selectConcelho.options[i].value.toLowerCase() === concelhoUrl.toLowerCase()) {
+                        selectConcelho.selectedIndex = i;
+                        break;
+                    }
+                }
+            }
+
+            atualizarOpcoesFreguesias();
+
+            document.getElementById('loader').style.opacity = '0';
+            setTimeout(() => document.getElementById('loader').style.display = 'none', 400);
+
+            aplicarFiltros(true);
+        }
+
+        function atualizarOpcoesFreguesias() {
+            const concelhoSel = document.getElementById('select-concelho').value;
+            const selectFreguesia = document.getElementById('select-freguesia');
+            const contagemFreguesias = {};
+
+            todosDadosGlobais.forEach(item => {
+                if (concelhoSel === "TODOS" || item.concelho === concelhoSel) {
+                    if (item.freguesia) {
+                        contagemFreguesias[item.freguesia] = (contagemFreguesias[item.freguesia] || 0) + 1;
+                    }
+                }
+            });
+
+            selectFreguesia.innerHTML = '<option value="TODOS">Todas as Freguesias</option>';
+            Object.keys(contagemFreguesias).sort((a, b) => a.localeCompare(b, 'pt')).forEach(f => {
+                const opt = document.createElement('option');
+                opt.value = f;
+                opt.textContent = `${f} (${contagemFreguesias[f]})`;
+                selectFreguesia.appendChild(opt);
+            });
+        }
+
+        // ====================================================================
+        // OTIMIZAÇÃO 3: CONSTRUIR O HTML DO POPUP APENAS QUANDO O UTILIZADOR CLICA
+        // ====================================================================
+        function construirHtmlPopup(item) {
+            let tipoLower = (item.tipologia || "Outro").toLowerCase();
+            let badgeClass = "badge-outro";
+            if (tipoLower.includes("alminha")) badgeClass = "badge-alminhas";
+            else if (tipoLower.includes("nicho-cruz") || tipoLower.includes("nicho/cruz")) badgeClass = "badge-nicho-cruz";
+            else if (tipoLower.includes("nicho")) badgeClass = "badge-nicho";
+            else if (tipoLower.includes("cruz")) badgeClass = "badge-cruz";
+
+            let htmlFotos = "";
+            if (item.temFoto) {
+                const fotosRaw = item.foto.split(/[,;\n\s]+/).map(f => f.trim()).filter(f => f.startsWith('http'));
+                if (fotosRaw.length > 0) {
+                    let imgsHtml = "";
+                    fotosRaw.forEach((fRaw, idx) => {
+                        const activeClass = idx === 0 ? "active" : "";
+                        const fUrl = normalizarLinkFotoDrive(fRaw);
+                        const idDrive = extrairIdDrive(fRaw);
+                        const fallbackUrl = idDrive ? `https://drive.google.com/thumbnail?id=${idDrive}&sz=w1000` : fUrl;
+                        imgsHtml += `<img src="${fUrl}" onerror="if(this.src!=='${fallbackUrl}'){this.src='${fallbackUrl}';}" class="carousel-img ${activeClass}" alt="Foto ${item.id}" referrerpolicy="no-referrer">`;
+                    });
+
+                    if (fotosRaw.length > 1) {
+                        htmlFotos = `
+                            <div class="carousel-container" id="carousel-${item.uid}">
+                                ${imgsHtml}
+                                <button class="carousel-btn prev" onclick="mudarFoto(${item.uid}, -1)">❮</button>
+                                <button class="carousel-btn next" onclick="mudarFoto(${item.uid}, 1)">❯</button>
+                                <div class="carousel-counter"><span id="curr-${item.uid}">1</span>/${fotosRaw.length}</div>
+                            </div>`;
+                    } else {
+                        htmlFotos = `
+                            <div class="carousel-container">
+                                ${imgsHtml}
+                            </div>`;
+                    }
+                }
+            }
+
+            let htmlMedidas = "";
+            if (item.altura || item.largura || item.profundidade) {
+                htmlMedidas = `<div class="popup-row"><strong>Medidas:</strong> ${item.altura || "-"} (Alt) x ${item.largura || "-"} (Larg) x ${item.profundidade || "-"} (Prof)</div>`;
+            }
+
+            let htmlPainel = item.painel ? `<div class="popup-row"><strong>Iconografia / Painel:</strong> ${item.painel}</div>` : "";
+            let htmlDescricao = item.descricao ? `<div class="popup-description">${item.descricao}</div>` : "";
+            let htmlAutor = item.autor ? `<div class="popup-row" style="font-size:11px; color:#666;"><strong>Recolha/Autor:</strong> ${item.autor}</div>` : "";
+
+            let btnFicha = (item.ficha && item.ficha.includes("http")) ? `<a href="${item.ficha}" target="_blank" rel="noopener" class="btn-ficha">📄 Ficha Técnica</a>` : "";
+            let btnGps = `<a href="https://www.google.com/maps?q=${item.lat},${item.lon}" target="_blank" rel="noopener" class="btn-gps" title="Abrir no Google Maps">📍 GPS</a>`;
+
+            return `
+                <div class="popup-header">
+                    <span>${item.id || "Registo PRP"}</span>
+                    <span class="popup-badge ${badgeClass}">${item.tipologia || "Património"}</span>
+                </div>
+                <div class="popup-body">
+                    ${htmlFotos}
+                    <div class="popup-row"><strong>Local:</strong> ${item.lugar ? item.lugar + ', ' : ''}${item.freguesia}, ${item.concelho}</div>
+                    ${item.cronologia ? `<div class="popup-row"><strong>Cronologia:</strong> ${item.cronologia}</div>` : ""}
+                    ${htmlMedidas}
+                    ${htmlPainel}
+                    ${htmlDescricao}
+                    ${htmlAutor}
+                    <div class="popup-actions">
+                        ${btnFicha}
+                        ${btnGps}
+                    </div>
+                </div>
+            `;
+        }
+
+        // ====================================================================
+        // OTIMIZAÇÃO 4: BOUNDING BOX (DESENHAR APENAS OS MARCADORES NA ÁREA VISÍVEL)
+        // ====================================================================
+        function atualizarMarcadoresNaJanela(forcar = false) {
+            if (popupAberto && !forcar) {
+                movimentoPendente = true;
+                return;
+            }
+
+            markersCluster.clearLayers();
+            if (dadosFiltradosAtuais.length === 0) {
+                document.getElementById('stat-total').textContent = `Monumentos: 0`;
+                document.getElementById('stat-fotos').textContent = `Com foto: 0`;
+                return;
+            }
+
+            // Margem de 25% além do ecrã visível para que o arrasto (incluindo autoPan) seja suave
+            const bounds = map.getBounds().pad(0.25);
+            const marcadoresVisiveis = [];
+
+            for (let i = 0; i < dadosFiltradosAtuais.length; i++) {
+                const item = dadosFiltradosAtuais[i];
+                if (bounds.contains([item.lat, item.lon])) {
+                    if (!item._marker) {
+                        const m = L.marker([item.lat, item.lon], {
+                            icon: obterIcone(item.tipologia)
+                        });
+                        // Lazy Popup com autoPan e margens de segurança
+                        m.bindPopup(() => construirHtmlPopup(item), {
+                            maxWidth: 300,
+                            autoPan: true,
+                            autoPanPaddingTopLeft: L.point(20, 20),
+                            autoPanPaddingBottomRight: L.point(20, 75)
+                        });
+                        item._marker = m;
+                    }
+                    marcadoresVisiveis.push(item._marker);
+                }
+            }
+
+            markersCluster.addLayers(marcadoresVisiveis);
+
+            document.getElementById('stat-total').textContent = `Monumentos: ${dadosFiltradosAtuais.length} (${marcadoresVisiveis.length} no ecrã)`;
+            document.getElementById('stat-fotos').textContent = `Com foto: ${totalFotosFiltradas}`;
+        }
+
+        window.mudarFoto = function(uid, direcao) {
+            const container = document.getElementById(`carousel-${uid}`);
+            if (!container) return;
+            const imagens = container.querySelectorAll('.carousel-img');
+            const counter = document.getElementById(`curr-${uid}`);
+            
+            let currentIndex = 0;
+            imagens.forEach((img, idx) => {
+                if (img.classList.contains('active')) currentIndex = idx;
+                img.classList.remove('active');
+            });
+
+            let novoIndex = currentIndex + direcao;
+            if (novoIndex >= imagens.length) novoIndex = 0;
+            if (novoIndex < 0) novoIndex = imagens.length - 1;
+
+            imagens[novoIndex].classList.add('active');
+            if (counter) counter.textContent = novoIndex + 1;
+        };
+
+        function aplicarFiltros(ajustarZoom = false) {
+            map.closePopup();
+            popupAberto = false;
+            movimentoPendente = false;
+
+            const concelhoSel = document.getElementById('select-concelho').value;
+            const freguesiaSel = document.getElementById('select-freguesia').value;
+            const tipologiaSel = document.getElementById('select-tipologia').value;
+
+            totalFotosFiltradas = 0;
+
+            dadosFiltradosAtuais = todosDadosGlobais.filter(item => {
+                const matchConcelho = (concelhoSel === "TODOS" || item.concelho === concelhoSel);
+                const matchFreguesia = (freguesiaSel === "TODOS" || item.freguesia === freguesiaSel);
+                
+                let matchTipologia = false;
+                const tItem = (item.tipologia || "").trim().toLowerCase();
+                if (tipologiaSel === "TODOS") {
+                    matchTipologia = true;
+                } else if (tipologiaSel === "Nicho-Cruz") {
+                    matchTipologia = (tItem.includes("nicho-cruz") || tItem.includes("nicho/cruz"));
+                } else if (tipologiaSel === "Nicho") {
+                    matchTipologia = (tItem.includes("nicho") && !tItem.includes("cruz"));
+                } else if (tipologiaSel === "Cruz") {
+                    matchTipologia = (tItem.includes("cruz") && !tItem.includes("nicho"));
+                } else {
+                    matchTipologia = tItem.includes(tipologiaSel.toLowerCase());
+                }
+
+                const passa = matchConcelho && matchFreguesia && matchTipologia;
+                if (passa && item.temFoto) {
+                    totalFotosFiltradas++;
+                }
+                return passa;
+            });
+
+            if ((concelhoSel !== "TODOS" || freguesiaSel !== "TODOS" || ajustarZoom) && dadosFiltradosAtuais.length > 0) {
+                const bounds = L.latLngBounds(dadosFiltradosAtuais.map(d => [d.lat, d.lon]));
+                if (bounds.isValid()) {
+                    map.fitBounds(bounds, { padding: [40, 40], maxZoom: 15 });
+                }
+            }
+
+            atualizarMarcadoresNaJanela(true);
+        }
+
+        // Atualizar os marcadores visíveis sempre que o utilizador arrasta ou faz zoom (exceto com popup aberto)
+        let timerMovimento = null;
+        map.on('moveend', () => {
+            if (popupAberto) {
+                movimentoPendente = true;
+                return;
+            }
+            clearTimeout(timerMovimento);
+            timerMovimento = setTimeout(atualizarMarcadoresNaJanela, 120);
+        });
+
+        document.getElementById('select-concelho').addEventListener('change', () => {
+            atualizarOpcoesFreguesias();
+            aplicarFiltros(true);
+        });
+
+        document.getElementById('select-freguesia').addEventListener('change', () => {
+            aplicarFiltros(true);
+        });
+
+        document.getElementById('select-tipologia').addEventListener('change', () => {
+            aplicarFiltros(false);
+        });
+
+        document.getElementById('btn-limpar').addEventListener('click', () => {
+            document.getElementById('select-concelho').value = "TODOS";
+            document.getElementById('select-tipologia').value = "TODOS";
+            atualizarOpcoesFreguesias();
+            document.getElementById('select-freguesia').value = "TODOS";
+            aplicarFiltros(true);
+        });
+
+        window.onload = iniciarCarregamentoDados;
+    </script>
+</body>
+</html>
